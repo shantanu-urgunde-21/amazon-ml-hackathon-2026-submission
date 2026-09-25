@@ -6,3 +6,4 @@ __pycache__/
 /.vscode
 personal-documentation/
 ./output/
+/code/business_entity_resolution/config.toml
