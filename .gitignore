@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 *_submission.zip
 /.vscode
+/code/business_entity_resolution/config.toml
