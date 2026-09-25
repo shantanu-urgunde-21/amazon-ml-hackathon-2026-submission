@@ -1,4 +1,0 @@
-[datasetPaths]
-trainPath = "~/Projects/EntityResolution/student_resource/dataset/train"
-testPath = "~/Projects/EntityResolution/student_resource/dataset/test"
-gtPath = "~/Projects/EntityResolution/student_resource/dataset/train/train_ground_truth.tsv"
