@@ -1,0 +1,403 @@
+[
+  {
+    "timestamp": "2026-09-25 22:18:19",
+    "tag": "Phase-2-Structured",
+    "description": "Phase 2: Multilingual Transliteration, Address Slots, Ternary Contradiction, and Group Margins",
+    "s1_entities": 5000,
+    "pool_records": 62736,
+    "pair_count": 244902,
+    "feature_count": 23,
+    "blocking_recall": 0.8630929124013441,
+    "captured_links": 11045,
+    "total_true_links": 12797,
+    "avg_candidates_per_s1": 48.9804,
+    "macro_f05": 0.9413149348345025,
+    "singleton_accuracy": 0.9793333333333333,
+    "non_singleton_f05": 0.9250213354778606,
+    "macro_precision_non_sing": 0.9644853741496598,
+    "macro_recall_non_sing": 0.8430873015873016,
+    "optimal_thresholds": {
+      "tau_singleton": 0.45,
+      "tau_match": 0.6,
+      "delta_prob": 0.2
+    },
+    "timing_seconds": {
+      "normalization": 4.88,
+      "blocking": 3.68,
+      "feature_extraction": 6.9,
+      "model_training": 8.85,
+      "total": 45.88
+    },
+    "top_features": [
+      {
+        "feature": "addr_token_sort",
+        "gain": 179606.85848204963
+      },
+      {
+        "feature": "addr_token_set",
+        "gain": 174905.47294053
+      },
+      {
+        "feature": "name_jaro_winkler",
+        "gain": 12464.314413920434
+      },
+      {
+        "feature": "name_token_sort",
+        "gain": 9133.720130326055
+      },
+      {
+        "feature": "addr_levenshtein",
+        "gain": 5407.688393516077
+      },
+      {
+        "feature": "addr_numeric_jaccard",
+        "gain": 4145.56869067721
+      },
+      {
+        "feature": "phonetic_jaccard",
+        "gain": 3783.840698270058
+      },
+      {
+        "feature": "building_number_state",
+        "gain": 3712.6549659300777
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-09-25 22:19:33",
+    "tag": "Phase-2-Structured",
+    "description": "Phase 2: Multilingual Transliteration, Address Slots, Ternary Contradiction, and Group Margins",
+    "s1_entities": 5000,
+    "pool_records": 62736,
+    "pair_count": 244902,
+    "feature_count": 23,
+    "blocking_recall": 0.8630147690865047,
+    "captured_links": 11044,
+    "total_true_links": 12797,
+    "avg_candidates_per_s1": 48.9804,
+    "macro_f05": 0.9413075116010816,
+    "singleton_accuracy": 0.982,
+    "non_singleton_f05": 0.9238678737158308,
+    "macro_precision_non_sing": 0.9631870748299318,
+    "macro_recall_non_sing": 0.8425427437641724,
+    "total_singletons": 1500,
+    "total_non_singletons": 3500,
+    "optimal_thresholds": {
+      "tau_singleton": 0.7,
+      "tau_match": 0.4,
+      "delta_prob": 0.2
+    },
+    "timing_seconds": {
+      "normalization": 3.84,
+      "blocking": 3.74,
+      "feature_extraction": 6.35,
+      "model_training": 7.63,
+      "total": 44.02
+    },
+    "top_features": [
+      {
+        "feature": "addr_token_sort",
+        "gain": 179688.15444975422
+      },
+      {
+        "feature": "addr_token_set",
+        "gain": 174881.506318659
+      },
+      {
+        "feature": "name_jaro_winkler",
+        "gain": 12550.33813547773
+      },
+      {
+        "feature": "name_token_sort",
+        "gain": 9579.97896731817
+      },
+      {
+        "feature": "addr_levenshtein",
+        "gain": 5326.39735315241
+      },
+      {
+        "feature": "addr_numeric_jaccard",
+        "gain": 4297.082055928625
+      },
+      {
+        "feature": "building_number_state",
+        "gain": 3633.649349451413
+      },
+      {
+        "feature": "phonetic_jaccard",
+        "gain": 3504.344312988006
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-09-25 22:23:24",
+    "tag": "Phase-2-Structured",
+    "description": "Phase 2: Multilingual Transliteration, Address Slots, Ternary Contradiction, and Group Margins",
+    "s1_entities": 5000,
+    "pool_records": 62736,
+    "pair_count": 244902,
+    "feature_count": 23,
+    "blocking_recall": 0.8628584824568258,
+    "captured_links": 11042,
+    "total_true_links": 12797,
+    "avg_candidates_per_s1": 48.9804,
+    "macro_f05": 0.9415323906777556,
+    "singleton_accuracy": 0.9773333333333334,
+    "non_singleton_f05": 0.9261891295396506,
+    "macro_precision_non_sing": 0.9653853741496599,
+    "macro_recall_non_sing": 0.8446919501133787,
+    "total_singletons": 1500,
+    "total_non_singletons": 3500,
+    "country_f05": {
+      "India": 0.9094479555671104,
+      "US": 0.9621663832875262
+    },
+    "failure_counts": {
+      "blocking_misses": 1755,
+      "scoring_misses": 241,
+      "false_merges": 62,
+      "singleton_false_merges": 35
+    },
+    "optimal_thresholds": {
+      "tau_singleton": 0.45,
+      "tau_match": 0.5,
+      "delta_prob": 0.2
+    },
+    "timing_seconds": {
+      "normalization": 4.14,
+      "blocking": 4.0,
+      "feature_extraction": 6.46,
+      "model_training": 9.04,
+      "total": 45.85
+    },
+    "top_features": [
+      {
+        "feature": "addr_token_sort",
+        "gain": 179535.38556655016
+      },
+      {
+        "feature": "addr_token_set",
+        "gain": 174727.1888872473
+      },
+      {
+        "feature": "name_jaro_winkler",
+        "gain": 12602.838507935103
+      },
+      {
+        "feature": "name_token_sort",
+        "gain": 9156.440980345684
+      },
+      {
+        "feature": "addr_levenshtein",
+        "gain": 5296.477733641805
+      },
+      {
+        "feature": "addr_numeric_jaccard",
+        "gain": 4796.585803936893
+      },
+      {
+        "feature": "phonetic_jaccard",
+        "gain": 3774.430110881048
+      },
+      {
+        "feature": "building_number_state",
+        "gain": 3689.0530275464566
+      }
+    ],
+    "failure_samples": {
+      "blocking_misses": [
+        {
+          "s1_id": "S1-890009542",
+          "s1_name": "SJ Ace Vendome Inc",
+          "s1_addr": "60 Uneeda Street, Madison, WV",
+          "true_id": "S2-461344955",
+          "true_name": "sjacevendome.com",
+          "true_addr": "60 UNEEDA STREET, MADISON, WV",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-890009542",
+          "s1_name": "SJ Ace Vendome Inc",
+          "s1_addr": "60 Uneeda Street, Madison, WV",
+          "true_id": "S2-932187797",
+          "true_name": "#sjace",
+          "true_addr": "UNEEDA STREET, MADISON, WV",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-832050262",
+          "s1_name": "Shakti Agro Limited",
+          "s1_addr": "C/O Gurnav Singh Saluja, Beside Zudio, Kultapara, Sadar, Sambalpur, Orissa",
+          "true_id": "S3-673592452",
+          "true_name": "Wexveo",
+          "true_addr": "Block F-264- C/o Gurnav Singh Saluja, Beside Zudio, Kultapara, Sadar, Sambalpur, OD",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-874660306",
+          "s1_name": "Physical Therapy Associates Group",
+          "s1_addr": "4303 Elkins Avenue, Unit B, Nashville, TN",
+          "true_id": "S2-279857860",
+          "true_name": "Group Physical Therapy Asseatiaes",
+          "true_addr": "004303 ELKINS AVE, PO BOX 5980, NASHVILLE, TN",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-109593962",
+          "s1_name": "Great Impex Private Limited",
+          "s1_addr": "6-2-101/5/C, Telangana, Hyderabad, Secunderabad, Lane Beside Centralview Apt New Bhoiguda",
+          "true_id": "S3-118565228",
+          "true_name": "\u0c17\u0c4d\u0c30\u0c47\u0c1f\u0c4d \u0c07\u0c02\u0c2a\u0c46\u0c15\u0c4d\u0c38\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "true_addr": "6-2-101/5/C, Lane Beside Centralview Apt New Bhoiguda, Secunderabad, Hyderabad, TG",
+          "reason": "Never retrieved in candidate blocking"
+        }
+      ],
+      "scoring_misses": [
+        {
+          "s1_id": "S1-760888492",
+          "s1_name": "VXE Lake Inc.",
+          "s1_addr": "134 Dina Lane, Montgomery, TX",
+          "true_id": "S3-268745505",
+          "true_name": "VXE Lake [lnc]",
+          "true_addr": "",
+          "prob": 0.5851227641105652,
+          "reason": "Scored P=0.585 below threshold"
+        },
+        {
+          "s1_id": "S1-971293452",
+          "s1_name": "Lovue Inc",
+          "s1_addr": "657 Fordsbush Road, Minden, NY",
+          "true_id": "S3-968522510",
+          "true_name": "Lovue.Com",
+          "true_addr": "",
+          "prob": 0.01960761658847332,
+          "reason": "Scored P=0.020 below threshold"
+        },
+        {
+          "s1_id": "S1-958297307",
+          "s1_name": "Hearn Jersey, LLC",
+          "s1_addr": "Fairfax County, Unit STE 103, VA, 7336 Route 29",
+          "true_id": "S3-278439020",
+          "true_name": "Hearn LLC Center",
+          "true_addr": "7336 Route 29, Falls Church, Virginia",
+          "prob": 0.4417194128036499,
+          "reason": "Scored P=0.442 below threshold"
+        },
+        {
+          "s1_id": "S1-958297307",
+          "s1_name": "Hearn Jersey, LLC",
+          "s1_addr": "Fairfax County, Unit STE 103, VA, 7336 Route 29",
+          "true_id": "S3-103154542",
+          "true_name": "Hearn LLC Center",
+          "true_addr": "7336 Route 29, Virginia, Falls Church",
+          "prob": 0.4417194128036499,
+          "reason": "Scored P=0.442 below threshold"
+        },
+        {
+          "s1_id": "S1-681160793",
+          "s1_name": "Divine Educational Society",
+          "s1_addr": "Plot No 01, Sect-06 Rajani, Khand, Sharda Nagar, Lucknow, Uttar Pradesh",
+          "true_id": "S3-987734207",
+          "true_name": "Divine Educational Service (ID: 25610)",
+          "true_addr": "01, NULL, Lucknow, \u0909\u0924\u094d\u0924\u0930 \u092a\u094d\u0930\u0926\u0947\u0936",
+          "prob": 0.08862552046775818,
+          "reason": "Scored P=0.089 below threshold"
+        }
+      ],
+      "false_merges": [
+        {
+          "s1_id": "S1-383740360",
+          "s1_name": "Sindt and Swaney Inc",
+          "s1_addr": "Champion, 36861 Van Brocklin Road, NY",
+          "cand_id": "S3-230826619",
+          "cand_name": "Sindt and Swaney Corp",
+          "cand_addr": "36870 Van Brocklin Rd, Crathage CITY, New York",
+          "prob": 0.9635938405990601
+        },
+        {
+          "s1_id": "S1-321648485",
+          "s1_name": "Herman Total Software LLC",
+          "s1_addr": "1151 Birdwell Drive, Gallatin, TN",
+          "cand_id": "S2-375083807",
+          "cand_name": "Herman Total Restaurant [Llc]",
+          "cand_addr": "1164 BIRDWELL DR, GALLATIN, TN",
+          "prob": 0.9361356496810913
+        },
+        {
+          "s1_id": "S1-988131510",
+          "s1_name": "Hunger Guild",
+          "s1_addr": "Eagle Mountain, UT, 1132 Hoof Print Drive",
+          "cand_id": "S2-355055649",
+          "cand_name": "Hunger Guild Holdings",
+          "cand_addr": "1133 HOOF PRINT DRIVE, EAGLE MOUNTAIN, UT",
+          "prob": 0.9898790121078491
+        },
+        {
+          "s1_id": "S1-908758233",
+          "s1_name": "Congregation Church",
+          "s1_addr": "929 Ridge Road, Lewiston, NY",
+          "cand_id": "S3-673223808",
+          "cand_name": "Congregation B\u00e1ptist Church Co",
+          "cand_addr": "",
+          "prob": 0.8969845771789551
+        },
+        {
+          "s1_id": "S1-672951415",
+          "s1_name": "Hyderabad Research Limited",
+          "s1_addr": "Flat No.202, No.8/2/456, Road No.4, Banjara Hills, Hyderabad, Telangana",
+          "cand_id": "S2-203449639",
+          "cand_name": "Hyderabad Research Limited",
+          "cand_addr": "PLOT NO: D 20/PART, PHASE-I, IDA, JEEDIMETLA, HYDERABAD, Telangana",
+          "prob": 0.9350504279136658
+        }
+      ],
+      "singleton_false_merges": [
+        {
+          "s1_id": "S1-141278611",
+          "s1_name": "Compass LLC",
+          "s1_addr": "820 Center Street, Unit 2, Provo, UT",
+          "cand_id": "S3-656229637",
+          "cand_name": "Compass LLC",
+          "cand_addr": "521-A Center Street, # 20, Ludlow, Massachusetts",
+          "prob": 0.9615039229393005
+        },
+        {
+          "s1_id": "S1-141278611",
+          "s1_name": "Compass LLC",
+          "s1_addr": "820 Center Street, Unit 2, Provo, UT",
+          "cand_id": "S3-914897360",
+          "cand_name": "Compass Llc",
+          "cand_addr": "521-A Center Street, Unit 20, Ludlow, Massachusetts",
+          "prob": 0.9973359704017639
+        },
+        {
+          "s1_id": "S1-338296041",
+          "s1_name": "Suryaksh Buildtech Private Limited",
+          "s1_addr": "16-11-51, Moosarambagh Malakpet, Hyderabad, Telangana",
+          "cand_id": "S2-985441801",
+          "cand_name": "\u0c35\u0c48\u0c1f\u0c4d \u0c38\u0c3e\u0c2b\u0c4d\u0c1f\u0c4d\u200c\u0c35\u0c47\u0c30\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "cand_addr": "16-11-781/39, MOOSARAMBAGH, AMBERPET, HYDERABAD, Telangana",
+          "prob": 0.681175708770752
+        },
+        {
+          "s1_id": "S1-670289577",
+          "s1_name": "Pediatric Dental Physicians Inc",
+          "s1_addr": "632 Twin Brooks Drive, Mount Vernon, WA",
+          "cand_id": "S3-538882911",
+          "cand_name": "Pediatric Dental Physicians Inc.",
+          "cand_addr": "",
+          "prob": 0.9860003590583801
+        },
+        {
+          "s1_id": "S1-784822153",
+          "s1_name": "Regional Foundation",
+          "s1_addr": "652 Front Street, Mounds, IL",
+          "cand_id": "S2-347177489",
+          "cand_name": "REGIONAL  FOUNDATION III",
+          "cand_addr": "216 ASH STREET, COBEN, IL",
+          "prob": 0.8898657560348511
+        }
+      ]
+    }
+  }
+]
