@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 *_submission.zip
 /.vscode
+personal-documentation/
+./output/
