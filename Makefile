@@ -1,11 +1,15 @@
-PYTHON   ?= python3
-PKG      := code/business_entity_resolution
+PY_VER   := 3.12
+PYTHON   ?= python$(PY_VER)
+PKG      := ./code/business_entity_resolution
 VENV     := $(PKG)/.venv
 VPY      := $(CURDIR)/$(VENV)/bin/python
 TEAM     ?= team
 ZIP_NAME := $(TEAM)_submission.zip
 
-.PHONY: help init run freeze package clean clean-all
+# Fails if the venv was built with a different Python version
+CHECK_PY  = $(VPY) -c 'import sys; v="%d.%d" % sys.version_info[:2]; sys.exit(0 if v == "$(PY_VER)" else f"venv is Python {v}, expected $(PY_VER). Run: make clean-all init")'
+
+.PHONY: help init run freeze activate package clean clean-all
 
 help:
 	@echo "make init             create $(VENV) and install requirements.txt"
@@ -18,11 +22,13 @@ help:
 # Reinstalls whenever requirements.txt changes
 $(VENV)/.installed: $(PKG)/requirements.txt
 	test -d $(VENV) || $(PYTHON) -m venv $(VENV)
+	@$(CHECK_PY)
 	$(VPY) -m pip install --upgrade pip
 	$(VPY) -m pip install -r $(PKG)/requirements.txt
 	touch $@
 
 init: $(VENV)/.installed
+	@$(CHECK_PY)
 
 # Runs from inside the package dir, matching the README instructions
 run: init
@@ -30,6 +36,10 @@ run: init
 
 freeze: init
 	$(VPY) -m pip freeze > $(PKG)/requirements.txt
+
+# make can't change the calling shell; use: eval "$(make -s activate)"
+activate: init
+	@echo "source $(VENV)/bin/activate"
 
 # Submission layout: output/, code/business_entity_resolution/, Documentation_template.md
 package: clean
