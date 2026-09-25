@@ -23,9 +23,20 @@ def build_inverted_indexes(
     df_pool: pd.DataFrame,
     max_token_bucket: int = 1500,
     max_num_bucket: int = 1000,
-) -> Tuple[Dict[str, List[int]], Dict[str, List[int]], Dict[str, List[int]], Dict[str, List[int]]]:
+) -> Tuple[
+    Dict[str, List[int]],
+    Dict[str, List[int]],
+    Dict[str, List[int]],
+    Dict[str, List[int]],
+    Dict[str, List[int]],
+]:
     """
-    Builds inverted indexes mapping tokens/numbers/ngrams/phonetic skeletons to integer row indices.
+    Builds inverted indexes mapping tokens/numbers/ngrams/phonetics to row indices:
+    1. Rare informative name tokens (capped at max_token_bucket)
+    2. Compound tokens for high-frequency names (token_pin, token_state)
+    3. Cross-script phonetic skeletons
+    4. Address numeric tokens
+    5. Character 3-grams across first 2 informative tokens
     """
     token_to_idx: Dict[str, List[int]] = defaultdict(list)
     phonetic_to_idx: Dict[str, List[int]] = defaultdict(list)
@@ -55,20 +66,47 @@ def build_inverted_indexes(
         for num in numbers:
             num_to_idx[num].append(idx)
 
-        # 4. Character 3-grams of first word
-        if len(norm_name) >= 3:
-            first_word = tokens[0] if tokens else norm_name[:8]
-            if len(first_word) >= 3 and first_word not in COMMON_LEGAL_WORDS:
-                for i in range(len(first_word) - 2):
-                    ng = first_word[i : i + 3]
-                    ngram_to_idx[ng].append(idx)
+        # 4. Character 3-grams across informative tokens
+        valid_words = [t for t in tokens if len(t) >= 3 and t not in COMMON_LEGAL_WORDS]
+        if valid_words:
+            for w in valid_words[:2]:
+                for i in range(len(w) - 2):
+                    ngram_to_idx[w[i : i + 3]].append(idx)
+        elif len(norm_name) >= 3:
+            clean_first = norm_name.replace(" ", "")[:8]
+            for i in range(len(clean_first) - 2):
+                ngram_to_idx[clean_first[i : i + 3]].append(idx)
 
     pruned_token_idx = {k: v for k, v in token_to_idx.items() if len(v) <= max_token_bucket}
     pruned_phonetic_idx = {k: v for k, v in phonetic_to_idx.items() if len(v) <= max_token_bucket}
     pruned_num_idx = {k: v for k, v in num_to_idx.items() if len(v) <= max_num_bucket}
     pruned_ngram_idx = {k: v for k, v in ngram_to_idx.items() if len(v) <= max_token_bucket}
 
-    return pruned_token_idx, pruned_phonetic_idx, pruned_num_idx, pruned_ngram_idx
+    # Build compound index for frequent tokens (> max_token_bucket)
+    compound_token_idx: Dict[str, List[int]] = defaultdict(list)
+    frequent_tokens = {k for k, v in token_to_idx.items() if len(v) > max_token_bucket}
+
+    if frequent_tokens:
+        for row in df_pool.itertuples():
+            idx = row.Index
+            pin = getattr(row, "postal_code", "")
+            state = getattr(row, "state_region", "")
+            for t in row.name_tokens:
+                if t in frequent_tokens:
+                    if pin:
+                        compound_token_idx[f"{t}#p_{pin}"].append(idx)
+                    if state:
+                        compound_token_idx[f"{t}#s_{state}"].append(idx)
+
+    pruned_compound_idx = {k: v for k, v in compound_token_idx.items() if len(v) <= max_token_bucket}
+
+    return (
+        pruned_token_idx,
+        pruned_compound_idx,
+        pruned_phonetic_idx,
+        pruned_num_idx,
+        pruned_ngram_idx,
+    )
 
 
 def generate_candidates_for_s1(
@@ -79,7 +117,14 @@ def generate_candidates_for_s1(
     """
     Generates candidate S2/S3 entity IDs for each S1 entity in df_s1.
     """
-    token_idx, phonetic_idx, num_idx, ngram_idx = build_inverted_indexes(df_pool)
+    (
+        token_idx,
+        compound_idx,
+        phonetic_idx,
+        num_idx,
+        ngram_idx,
+    ) = build_inverted_indexes(df_pool)
+
     pool_ids = df_pool["entity_id"].values
     pool_countries = df_pool["country"].values
 
@@ -91,14 +136,24 @@ def generate_candidates_for_s1(
         s1_country = row.country
         s1_tokens = row.name_tokens
         s1_numbers = row.numeric_tokens
+        s1_pin = getattr(row, "postal_code", "")
+        s1_state = getattr(row, "state_region", "")
 
         hit_counts: Dict[int, int] = defaultdict(int)
 
-        # 1. Query name tokens (+3)
+        # 1. Query name tokens (+3) & compound tokens (+2 / +3)
         for t in s1_tokens:
             if t in token_idx:
                 for idx in token_idx[t]:
                     hit_counts[idx] += 3
+            else:
+                # Query compound keys for frequent corporate tokens
+                if s1_pin and f"{t}#p_{s1_pin}" in compound_idx:
+                    for idx in compound_idx[f"{t}#p_{s1_pin}"]:
+                        hit_counts[idx] += 3
+                if s1_state and f"{t}#s_{s1_state}" in compound_idx:
+                    for idx in compound_idx[f"{t}#s_{s1_state}"]:
+                        hit_counts[idx] += 2
 
         # 2. Query phonetic skeletons (+3)
         if has_phonetic:
@@ -115,13 +170,14 @@ def generate_candidates_for_s1(
 
         # 4. Query n-grams (+1)
         if len(hit_counts) < max_candidates_per_s1 and s1_tokens:
-            first_word = s1_tokens[0]
-            if len(first_word) >= 3 and first_word not in COMMON_LEGAL_WORDS:
-                for i in range(len(first_word) - 2):
-                    ng = first_word[i : i + 3]
-                    if ng in ngram_idx:
-                        for idx in ngram_idx[ng]:
-                            hit_counts[idx] += 1
+            valid_words = [t for t in s1_tokens if len(t) >= 3 and t not in COMMON_LEGAL_WORDS]
+            if valid_words:
+                for w in valid_words[:2]:
+                    for i in range(len(w) - 2):
+                        ng = w[i : i + 3]
+                        if ng in ngram_idx:
+                            for idx in ngram_idx[ng]:
+                                hit_counts[idx] += 1
 
         if not hit_counts:
             candidates_dict[s1_id] = []
@@ -139,6 +195,7 @@ def generate_candidates_for_s1(
         candidates_dict[s1_id] = top_candidates
 
     return candidates_dict
+
 
 
 def evaluate_blocking_recall(

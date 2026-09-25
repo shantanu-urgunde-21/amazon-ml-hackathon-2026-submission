@@ -4,10 +4,21 @@ Optimizes tau_singleton, tau_match, and delta_prob on OOF probabilities to direc
 maximize the competition's macro-averaged F_0.5 metric.
 """
 
+import pandas as pd
 from collections import defaultdict
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 import numpy as np
 from src.validation.metrics import macro_fbeta
+
+
+def apply_contradiction_penalties(
+    probs: np.ndarray,
+    X: Optional[pd.DataFrame] = None,
+    penalty_factor: float = 1.0,
+) -> np.ndarray:
+    """Passes through probabilities; contradiction features are weighted natively by GBDT."""
+    return probs
+
 
 
 def group_pair_predictions(
@@ -29,6 +40,7 @@ def group_pair_predictions(
         grouped[s1_id].append((cand_id, float(prob)))
 
     return grouped
+
 
 
 def apply_decision_gate(
@@ -73,13 +85,18 @@ def optimize_decision_thresholds(
     pair_keys: List[Tuple[str, str]],
     ground_truth: Dict[str, Set[str]],
     all_s1_ids: List[str],
+    X: Optional[pd.DataFrame] = None,
 ) -> Tuple[float, float, float, float]:
     """
     Performs grid search over (tau_singleton, tau_match, delta_prob) to find
     parameters that maximize macro F_0.5 on Out-Of-Fold predictions.
     """
+    if X is not None:
+        oof_probs = apply_contradiction_penalties(oof_probs, X)
+
     print("Grouping OOF predictions by S1 entity...")
     grouped_oof = group_pair_predictions(oof_probs, pair_keys, all_s1_ids=all_s1_ids)
+
 
     # Convert ground truth subset to dict of sets for scoring
     eval_gt = {s1: ground_truth.get(s1, set()) for s1 in all_s1_ids}

@@ -399,5 +399,818 @@
         }
       ]
     }
+  },
+  {
+    "timestamp": "2026-09-25 22:44:45",
+    "tag": "Phase-3-Contradictions",
+    "description": "Phase 3: Street Number Contradiction, State Conflict, and Compound Blocking",
+    "s1_entities": 5000,
+    "pool_records": 62736,
+    "pair_count": 247099,
+    "feature_count": 28,
+    "blocking_recall": 0.8653590685316871,
+    "captured_links": 11074,
+    "total_true_links": 12797,
+    "avg_candidates_per_s1": 49.4198,
+    "macro_f05": 0.942558451256325,
+    "singleton_accuracy": 0.9813333333333333,
+    "non_singleton_f05": 0.9259406446518927,
+    "macro_precision_non_sing": 0.9649775510204083,
+    "macro_recall_non_sing": 0.8443573696145125,
+    "total_singletons": 1500,
+    "total_non_singletons": 3500,
+    "country_f05": {
+      "India": 0.910336445704704,
+      "US": 0.9632809175279392
+    },
+    "failure_counts": {
+      "blocking_misses": 1723,
+      "scoring_misses": 261,
+      "false_merges": 56,
+      "singleton_false_merges": 30
+    },
+    "optimal_thresholds": {
+      "tau_singleton": 0.65,
+      "tau_match": 0.4,
+      "delta_prob": 0.2
+    },
+    "timing_seconds": {
+      "normalization": 6.41,
+      "blocking": 4.23,
+      "feature_extraction": 6.47,
+      "model_training": 7.55,
+      "total": 47.24
+    },
+    "top_features": [
+      {
+        "feature": "addr_token_set",
+        "gain": 281787.9147281861
+      },
+      {
+        "feature": "addr_token_sort",
+        "gain": 45368.09450088679
+      },
+      {
+        "feature": "addr_levenshtein",
+        "gain": 27425.897365968478
+      },
+      {
+        "feature": "name_jaro_winkler",
+        "gain": 14044.748367965736
+      },
+      {
+        "feature": "state_region_state",
+        "gain": 8793.145252352953
+      },
+      {
+        "feature": "name_token_sort",
+        "gain": 8031.774891469324
+      },
+      {
+        "feature": "phonetic_jaccard",
+        "gain": 4296.200331671394
+      },
+      {
+        "feature": "building_number_state",
+        "gain": 2511.976404529916
+      }
+    ],
+    "failure_samples": {
+      "blocking_misses": [
+        {
+          "s1_id": "S1-890009542",
+          "s1_name": "SJ Ace Vendome Inc",
+          "s1_addr": "60 Uneeda Street, Madison, WV",
+          "true_id": "S2-932187797",
+          "true_name": "#sjace",
+          "true_addr": "UNEEDA STREET, MADISON, WV",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-890009542",
+          "s1_name": "SJ Ace Vendome Inc",
+          "s1_addr": "60 Uneeda Street, Madison, WV",
+          "true_id": "S2-461344955",
+          "true_name": "sjacevendome.com",
+          "true_addr": "60 UNEEDA STREET, MADISON, WV",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-832050262",
+          "s1_name": "Shakti Agro Limited",
+          "s1_addr": "C/O Gurnav Singh Saluja, Beside Zudio, Kultapara, Sadar, Sambalpur, Orissa",
+          "true_id": "S3-673592452",
+          "true_name": "Wexveo",
+          "true_addr": "Block F-264- C/o Gurnav Singh Saluja, Beside Zudio, Kultapara, Sadar, Sambalpur, OD",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-874660306",
+          "s1_name": "Physical Therapy Associates Group",
+          "s1_addr": "4303 Elkins Avenue, Unit B, Nashville, TN",
+          "true_id": "S2-279857860",
+          "true_name": "Group Physical Therapy Asseatiaes",
+          "true_addr": "004303 ELKINS AVE, PO BOX 5980, NASHVILLE, TN",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-109593962",
+          "s1_name": "Great Impex Private Limited",
+          "s1_addr": "6-2-101/5/C, Telangana, Hyderabad, Secunderabad, Lane Beside Centralview Apt New Bhoiguda",
+          "true_id": "S2-199917158",
+          "true_name": "\u0c17\u0c4d\u0c30\u0c47\u0c1f\u0c4d \u0c07\u0c02\u0c2a\u0c46\u0c15\u0c4d\u0c38\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "true_addr": "6-2-101/5/C, HYDERABAD, SECUNDERABAD, \u0c24\u0c46\u0c32\u0c02\u0c17\u0c3e\u0c23",
+          "reason": "Never retrieved in candidate blocking"
+        }
+      ],
+      "scoring_misses": [
+        {
+          "s1_id": "S1-760888492",
+          "s1_name": "VXE Lake Inc.",
+          "s1_addr": "134 Dina Lane, Montgomery, TX",
+          "true_id": "S3-268745505",
+          "true_name": "VXE Lake [lnc]",
+          "true_addr": "",
+          "prob": 0.35908037424087524,
+          "reason": "Scored P=0.359 below threshold"
+        },
+        {
+          "s1_id": "S1-958297307",
+          "s1_name": "Hearn Jersey, LLC",
+          "s1_addr": "Fairfax County, Unit STE 103, VA, 7336 Route 29",
+          "true_id": "S3-278439020",
+          "true_name": "Hearn LLC Center",
+          "true_addr": "7336 Route 29, Falls Church, Virginia",
+          "prob": 0.17734481394290924,
+          "reason": "Scored P=0.177 below threshold"
+        },
+        {
+          "s1_id": "S1-958297307",
+          "s1_name": "Hearn Jersey, LLC",
+          "s1_addr": "Fairfax County, Unit STE 103, VA, 7336 Route 29",
+          "true_id": "S3-103154542",
+          "true_name": "Hearn LLC Center",
+          "true_addr": "7336 Route 29, Virginia, Falls Church",
+          "prob": 0.17734481394290924,
+          "reason": "Scored P=0.177 below threshold"
+        },
+        {
+          "s1_id": "S1-681160793",
+          "s1_name": "Divine Educational Society",
+          "s1_addr": "Plot No 01, Sect-06 Rajani, Khand, Sharda Nagar, Lucknow, Uttar Pradesh",
+          "true_id": "S3-987734207",
+          "true_name": "Divine Educational Service (ID: 25610)",
+          "true_addr": "01, NULL, Lucknow, \u0909\u0924\u094d\u0924\u0930 \u092a\u094d\u0930\u0926\u0947\u0936",
+          "prob": 0.43739259243011475,
+          "reason": "Scored P=0.437 below threshold"
+        },
+        {
+          "s1_id": "S1-275239484",
+          "s1_name": "Mangalshree Services Private Limited",
+          "s1_addr": "1725 Dariba Kalan Dariba, Kalan Delhi Central, Delhi, North Delhi, Delhi",
+          "true_id": "S2-810206705",
+          "true_name": "MANGALSHREE SERVICES PTIBTE (LIMITED)",
+          "true_addr": "",
+          "prob": 0.7751622796058655,
+          "reason": "Scored P=0.775 below threshold"
+        }
+      ],
+      "false_merges": [
+        {
+          "s1_id": "S1-383740360",
+          "s1_name": "Sindt and Swaney Inc",
+          "s1_addr": "Champion, 36861 Van Brocklin Road, NY",
+          "cand_id": "S3-230826619",
+          "cand_name": "Sindt and Swaney Corp",
+          "cand_addr": "36870 Van Brocklin Rd, Crathage CITY, New York",
+          "prob": 0.993806004524231
+        },
+        {
+          "s1_id": "S1-321648485",
+          "s1_name": "Herman Total Software LLC",
+          "s1_addr": "1151 Birdwell Drive, Gallatin, TN",
+          "cand_id": "S2-375083807",
+          "cand_name": "Herman Total Restaurant [Llc]",
+          "cand_addr": "1164 BIRDWELL DR, GALLATIN, TN",
+          "prob": 0.9462621212005615
+        },
+        {
+          "s1_id": "S1-203757633",
+          "s1_name": "India Balakrishna Com Private Limited",
+          "s1_addr": "South Kalyanpur Pops. Baruipur, Kolkata, Howrah, West Bengal",
+          "cand_id": "S3-880695057",
+          "cand_name": "Private Sai (India) (india) L\u00edmited",
+          "cand_addr": "9-12, Kolkata, Howrah, WB",
+          "prob": 0.8056786060333252
+        },
+        {
+          "s1_id": "S1-988131510",
+          "s1_name": "Hunger Guild",
+          "s1_addr": "Eagle Mountain, UT, 1132 Hoof Print Drive",
+          "cand_id": "S2-355055649",
+          "cand_name": "Hunger Guild Holdings",
+          "cand_addr": "1133 HOOF PRINT DRIVE, EAGLE MOUNTAIN, UT",
+          "prob": 0.9868543744087219
+        },
+        {
+          "s1_id": "S1-958475533",
+          "s1_name": "Big Auto Body",
+          "s1_addr": "201 High Ridge Trail, Rio Rancho, NM",
+          "cand_id": "S2-926656275",
+          "cand_name": "BIG \u00c1UTO \u00c1UTO B\u00d3DY",
+          "cand_addr": "",
+          "prob": 0.8896957635879517
+        }
+      ],
+      "singleton_false_merges": [
+        {
+          "s1_id": "S1-141278611",
+          "s1_name": "Compass LLC",
+          "s1_addr": "820 Center Street, Unit 2, Provo, UT",
+          "cand_id": "S3-656229637",
+          "cand_name": "Compass LLC",
+          "cand_addr": "521-A Center Street, # 20, Ludlow, Massachusetts",
+          "prob": 0.9745585322380066
+        },
+        {
+          "s1_id": "S1-141278611",
+          "s1_name": "Compass LLC",
+          "s1_addr": "820 Center Street, Unit 2, Provo, UT",
+          "cand_id": "S3-914897360",
+          "cand_name": "Compass Llc",
+          "cand_addr": "521-A Center Street, Unit 20, Ludlow, Massachusetts",
+          "prob": 0.9975709319114685
+        },
+        {
+          "s1_id": "S1-670289577",
+          "s1_name": "Pediatric Dental Physicians Inc",
+          "s1_addr": "632 Twin Brooks Drive, Mount Vernon, WA",
+          "cand_id": "S3-538882911",
+          "cand_name": "Pediatric Dental Physicians Inc.",
+          "cand_addr": "",
+          "prob": 0.9802669882774353
+        },
+        {
+          "s1_id": "S1-784822153",
+          "s1_name": "Regional Foundation",
+          "s1_addr": "652 Front Street, Mounds, IL",
+          "cand_id": "S2-347177489",
+          "cand_name": "REGIONAL  FOUNDATION III",
+          "cand_addr": "216 ASH STREET, COBEN, IL",
+          "prob": 0.8560411930084229
+        },
+        {
+          "s1_id": "S1-616643593",
+          "s1_name": "Back Alley Nails",
+          "s1_addr": "703 Garland Road, Enid, OK",
+          "cand_id": "S2-888873504",
+          "cand_name": "BACK ALLEY NAILS CARE",
+          "cand_addr": "",
+          "prob": 0.7639179825782776
+        }
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-25 22:48:10",
+    "tag": "Phase-3-Precision-Defense",
+    "description": "Phase 3: Contradiction Hard Penalty Gating + Compound Blocking + URL Cleaner",
+    "s1_entities": 5000,
+    "pool_records": 62736,
+    "pair_count": 247099,
+    "feature_count": 28,
+    "blocking_recall": 0.8650464952723295,
+    "captured_links": 11070,
+    "total_true_links": 12797,
+    "avg_candidates_per_s1": 49.4198,
+    "macro_f05": 0.8980224951177206,
+    "singleton_accuracy": 0.9813333333333333,
+    "non_singleton_f05": 0.8623178501681723,
+    "macro_precision_non_sing": 0.9286231292517008,
+    "macro_recall_non_sing": 0.742104195011338,
+    "total_singletons": 1500,
+    "total_non_singletons": 3500,
+    "country_f05": {
+      "India": 0.8977193505515856,
+      "US": 0.8982174520404699
+    },
+    "failure_counts": {
+      "blocking_misses": 1727,
+      "scoring_misses": 1555,
+      "false_merges": 48,
+      "singleton_false_merges": 30
+    },
+    "optimal_thresholds": {
+      "tau_singleton": 0.45,
+      "tau_match": 0.55,
+      "delta_prob": 0.2
+    },
+    "timing_seconds": {
+      "normalization": 6.13,
+      "blocking": 4.52,
+      "feature_extraction": 7.26,
+      "model_training": 8.46,
+      "total": 48.76
+    },
+    "top_features": [
+      {
+        "feature": "addr_token_set",
+        "gain": 281912.2485761915
+      },
+      {
+        "feature": "addr_token_sort",
+        "gain": 45224.23750957829
+      },
+      {
+        "feature": "addr_levenshtein",
+        "gain": 27479.65422814804
+      },
+      {
+        "feature": "name_jaro_winkler",
+        "gain": 14345.224482343236
+      },
+      {
+        "feature": "state_region_state",
+        "gain": 8946.728214788436
+      },
+      {
+        "feature": "name_token_sort",
+        "gain": 7597.411058930043
+      },
+      {
+        "feature": "phonetic_jaccard",
+        "gain": 4248.3636674723075
+      },
+      {
+        "feature": "name_token_set",
+        "gain": 2625.709254004288
+      }
+    ],
+    "failure_samples": {
+      "blocking_misses": [
+        {
+          "s1_id": "S1-890009542",
+          "s1_name": "SJ Ace Vendome Inc",
+          "s1_addr": "60 Uneeda Street, Madison, WV",
+          "true_id": "S2-932187797",
+          "true_name": "#sjace",
+          "true_addr": "UNEEDA STREET, MADISON, WV",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-890009542",
+          "s1_name": "SJ Ace Vendome Inc",
+          "s1_addr": "60 Uneeda Street, Madison, WV",
+          "true_id": "S2-461344955",
+          "true_name": "sjacevendome.com",
+          "true_addr": "60 UNEEDA STREET, MADISON, WV",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-832050262",
+          "s1_name": "Shakti Agro Limited",
+          "s1_addr": "C/O Gurnav Singh Saluja, Beside Zudio, Kultapara, Sadar, Sambalpur, Orissa",
+          "true_id": "S3-673592452",
+          "true_name": "Wexveo",
+          "true_addr": "Block F-264- C/o Gurnav Singh Saluja, Beside Zudio, Kultapara, Sadar, Sambalpur, OD",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-874660306",
+          "s1_name": "Physical Therapy Associates Group",
+          "s1_addr": "4303 Elkins Avenue, Unit B, Nashville, TN",
+          "true_id": "S2-279857860",
+          "true_name": "Group Physical Therapy Asseatiaes",
+          "true_addr": "004303 ELKINS AVE, PO BOX 5980, NASHVILLE, TN",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-109593962",
+          "s1_name": "Great Impex Private Limited",
+          "s1_addr": "6-2-101/5/C, Telangana, Hyderabad, Secunderabad, Lane Beside Centralview Apt New Bhoiguda",
+          "true_id": "S2-199917158",
+          "true_name": "\u0c17\u0c4d\u0c30\u0c47\u0c1f\u0c4d \u0c07\u0c02\u0c2a\u0c46\u0c15\u0c4d\u0c38\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "true_addr": "6-2-101/5/C, HYDERABAD, SECUNDERABAD, \u0c24\u0c46\u0c32\u0c02\u0c17\u0c3e\u0c23",
+          "reason": "Never retrieved in candidate blocking"
+        }
+      ],
+      "scoring_misses": [
+        {
+          "s1_id": "S1-716830359",
+          "s1_name": "Spicer Star Environmental Services LLC",
+          "s1_addr": "Fl 0, MO, Saint Louis, 9327 Atwood Drive",
+          "true_id": "S3-762649005",
+          "true_name": "Spicer-Star Environmental Seraices LLC",
+          "true_addr": "932 Atwood Dr, Fl 0, Stlouis, Missouri",
+          "prob": 0.0498814657330513,
+          "reason": "Scored P=0.050 below threshold"
+        },
+        {
+          "s1_id": "S1-716830359",
+          "s1_name": "Spicer Star Environmental Services LLC",
+          "s1_addr": "Fl 0, MO, Saint Louis, 9327 Atwood Drive",
+          "true_id": "S3-737589534",
+          "true_name": "Spicer Star Environmental Services",
+          "true_addr": "Stlouis, Missouri, 932 Atwood Drive, Fl. 0",
+          "prob": 0.0024827078450471163,
+          "reason": "Scored P=0.002 below threshold"
+        },
+        {
+          "s1_id": "S1-890009542",
+          "s1_name": "SJ Ace Vendome Inc",
+          "s1_addr": "60 Uneeda Street, Madison, WV",
+          "true_id": "S3-203500929",
+          "true_name": "SJ Ace Venhdome Inc",
+          "true_addr": "West Virginia, 1 Uneeda Street, Madison",
+          "prob": 0.049950722604990005,
+          "reason": "Scored P=0.050 below threshold"
+        },
+        {
+          "s1_id": "S1-975588880",
+          "s1_name": "XBL Kpet",
+          "s1_addr": "459 Carter Road, Plymouth, CT",
+          "true_id": "S2-695716096",
+          "true_name": "XBL Kpet",
+          "true_addr": "45 CARTER ROAD, PLYMOUTH, CT",
+          "prob": 0.049986712634563446,
+          "reason": "Scored P=0.050 below threshold"
+        },
+        {
+          "s1_id": "S1-874660306",
+          "s1_name": "Physical Therapy Associates Group",
+          "s1_addr": "4303 Elkins Avenue, Unit B, Nashville, TN",
+          "true_id": "S3-289365741",
+          "true_name": "Physical Therapy",
+          "true_addr": "4303 Elkins Ave, # B, Nashville, Tennessee",
+          "prob": 0.04996893182396889,
+          "reason": "Scored P=0.050 below threshold"
+        }
+      ],
+      "false_merges": [
+        {
+          "s1_id": "S1-958475533",
+          "s1_name": "Big Auto Body",
+          "s1_addr": "201 High Ridge Trail, Rio Rancho, NM",
+          "cand_id": "S2-926656275",
+          "cand_name": "BIG \u00c1UTO \u00c1UTO B\u00d3DY",
+          "cand_addr": "",
+          "prob": 0.8741953372955322
+        },
+        {
+          "s1_id": "S1-672951415",
+          "s1_name": "Hyderabad Research Limited",
+          "s1_addr": "Flat No.202, No.8/2/456, Road No.4, Banjara Hills, Hyderabad, Telangana",
+          "cand_id": "S2-203449639",
+          "cand_name": "Hyderabad Research Limited",
+          "cand_addr": "PLOT NO: D 20/PART, PHASE-I, IDA, JEEDIMETLA, HYDERABAD, Telangana",
+          "prob": 0.944125235080719
+        },
+        {
+          "s1_id": "S1-182298055",
+          "s1_name": "Bangalore North Realty Private Limited",
+          "s1_addr": "F302, Bangalore North, Bangalore, Karnataka, Godrej Avenues, Doddaballapur Road",
+          "cand_id": "S2-372695124",
+          "cand_name": "Bangalore North Property Private  Limited",
+          "cand_addr": "",
+          "prob": 0.9196125268936157
+        },
+        {
+          "s1_id": "S1-147812030",
+          "s1_name": "Ramirez and Pearson Inc",
+          "s1_addr": "210 Davis Avenue, Detroit Lakes, MN",
+          "cand_id": "S2-853563408",
+          "cand_name": "and Ramirez \u00cdnc Pearson Northside",
+          "cand_addr": "PO BOX 4276, 217 DAVIS AVENUE, DETROIT LAKES, MN",
+          "prob": 0.9884882569313049
+        },
+        {
+          "s1_id": "S1-466963472",
+          "s1_name": "Highland Society PC",
+          "s1_addr": "NC, 107 Ben Williams Road, Jacksonville",
+          "cand_id": "S2-47667961",
+          "cand_name": "Highland  Society IV",
+          "cand_addr": "",
+          "prob": 0.8479900360107422
+        }
+      ],
+      "singleton_false_merges": [
+        {
+          "s1_id": "S1-338296041",
+          "s1_name": "Suryaksh Buildtech Private Limited",
+          "s1_addr": "16-11-51, Moosarambagh Malakpet, Hyderabad, Telangana",
+          "cand_id": "S2-985441801",
+          "cand_name": "\u0c35\u0c48\u0c1f\u0c4d \u0c38\u0c3e\u0c2b\u0c4d\u0c1f\u0c4d\u200c\u0c35\u0c47\u0c30\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "cand_addr": "16-11-781/39, MOOSARAMBAGH, AMBERPET, HYDERABAD, Telangana",
+          "prob": 0.8139222860336304
+        },
+        {
+          "s1_id": "S1-670289577",
+          "s1_name": "Pediatric Dental Physicians Inc",
+          "s1_addr": "632 Twin Brooks Drive, Mount Vernon, WA",
+          "cand_id": "S3-538882911",
+          "cand_name": "Pediatric Dental Physicians Inc.",
+          "cand_addr": "",
+          "prob": 0.9799374938011169
+        },
+        {
+          "s1_id": "S1-784822153",
+          "s1_name": "Regional Foundation",
+          "s1_addr": "652 Front Street, Mounds, IL",
+          "cand_id": "S2-347177489",
+          "cand_name": "REGIONAL  FOUNDATION III",
+          "cand_addr": "216 ASH STREET, COBEN, IL",
+          "prob": 0.8915574550628662
+        },
+        {
+          "s1_id": "S1-616643593",
+          "s1_name": "Back Alley Nails",
+          "s1_addr": "703 Garland Road, Enid, OK",
+          "cand_id": "S2-888873504",
+          "cand_name": "BACK ALLEY NAILS CARE",
+          "cand_addr": "",
+          "prob": 0.7868722677230835
+        },
+        {
+          "s1_id": "S1-847214446",
+          "s1_name": "Seven Developers Pvt Ltd",
+          "s1_addr": "Villa 98, The Gran Carmen Address, Sarjapur Road, Bengaluru, Bangalore, Karnataka",
+          "cand_id": "S3-693516132",
+          "cand_name": "Foundation Eleanor Developers Pvt (Ltd)",
+          "cand_addr": "No. #98, Bangalore, KA",
+          "prob": 0.7299119830131531
+        }
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-25 22:50:53",
+    "tag": "Phase-3-Clean-Contradictions",
+    "description": "Phase 3: Clean State & Street Contradictions + Compound Blocking + Domain Cleaner",
+    "s1_entities": 5000,
+    "pool_records": 62736,
+    "pair_count": 247099,
+    "feature_count": 28,
+    "blocking_recall": 0.8648120653278112,
+    "captured_links": 11067,
+    "total_true_links": 12797,
+    "avg_candidates_per_s1": 49.4198,
+    "macro_f05": 0.9420751426250703,
+    "singleton_accuracy": 0.9806666666666667,
+    "non_singleton_f05": 0.9255359180358146,
+    "macro_precision_non_sing": 0.9643823129251701,
+    "macro_recall_non_sing": 0.8440414965986395,
+    "total_singletons": 1500,
+    "total_non_singletons": 3500,
+    "country_f05": {
+      "India": 0.9096594251720206,
+      "US": 0.9629221879933313
+    },
+    "failure_counts": {
+      "blocking_misses": 1730,
+      "scoring_misses": 259,
+      "false_merges": 57,
+      "singleton_false_merges": 31
+    },
+    "optimal_thresholds": {
+      "tau_singleton": 0.7,
+      "tau_match": 0.4,
+      "delta_prob": 0.2
+    },
+    "timing_seconds": {
+      "normalization": 5.42,
+      "blocking": 4.1,
+      "feature_extraction": 6.32,
+      "model_training": 6.72,
+      "total": 44.48
+    },
+    "top_features": [
+      {
+        "feature": "addr_token_set",
+        "gain": 282713.7265467152
+      },
+      {
+        "feature": "addr_token_sort",
+        "gain": 45329.90075028286
+      },
+      {
+        "feature": "addr_levenshtein",
+        "gain": 27584.057976233133
+      },
+      {
+        "feature": "name_jaro_winkler",
+        "gain": 13615.032279535235
+      },
+      {
+        "feature": "name_token_sort",
+        "gain": 8534.219680983995
+      },
+      {
+        "feature": "building_number_state",
+        "gain": 7100.20475051097
+      },
+      {
+        "feature": "phonetic_jaccard",
+        "gain": 4370.844968685718
+      },
+      {
+        "feature": "state_region_state",
+        "gain": 2736.7515914335845
+      }
+    ],
+    "failure_samples": {
+      "blocking_misses": [
+        {
+          "s1_id": "S1-890009542",
+          "s1_name": "SJ Ace Vendome Inc",
+          "s1_addr": "60 Uneeda Street, Madison, WV",
+          "true_id": "S2-932187797",
+          "true_name": "#sjace",
+          "true_addr": "UNEEDA STREET, MADISON, WV",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-890009542",
+          "s1_name": "SJ Ace Vendome Inc",
+          "s1_addr": "60 Uneeda Street, Madison, WV",
+          "true_id": "S2-461344955",
+          "true_name": "sjacevendome.com",
+          "true_addr": "60 UNEEDA STREET, MADISON, WV",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-832050262",
+          "s1_name": "Shakti Agro Limited",
+          "s1_addr": "C/O Gurnav Singh Saluja, Beside Zudio, Kultapara, Sadar, Sambalpur, Orissa",
+          "true_id": "S3-673592452",
+          "true_name": "Wexveo",
+          "true_addr": "Block F-264- C/o Gurnav Singh Saluja, Beside Zudio, Kultapara, Sadar, Sambalpur, OD",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-874660306",
+          "s1_name": "Physical Therapy Associates Group",
+          "s1_addr": "4303 Elkins Avenue, Unit B, Nashville, TN",
+          "true_id": "S2-279857860",
+          "true_name": "Group Physical Therapy Asseatiaes",
+          "true_addr": "004303 ELKINS AVE, PO BOX 5980, NASHVILLE, TN",
+          "reason": "Never retrieved in candidate blocking"
+        },
+        {
+          "s1_id": "S1-109593962",
+          "s1_name": "Great Impex Private Limited",
+          "s1_addr": "6-2-101/5/C, Telangana, Hyderabad, Secunderabad, Lane Beside Centralview Apt New Bhoiguda",
+          "true_id": "S3-118565228",
+          "true_name": "\u0c17\u0c4d\u0c30\u0c47\u0c1f\u0c4d \u0c07\u0c02\u0c2a\u0c46\u0c15\u0c4d\u0c38\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "true_addr": "6-2-101/5/C, Lane Beside Centralview Apt New Bhoiguda, Secunderabad, Hyderabad, TG",
+          "reason": "Never retrieved in candidate blocking"
+        }
+      ],
+      "scoring_misses": [
+        {
+          "s1_id": "S1-760888492",
+          "s1_name": "VXE Lake Inc.",
+          "s1_addr": "134 Dina Lane, Montgomery, TX",
+          "true_id": "S3-268745505",
+          "true_name": "VXE Lake [lnc]",
+          "true_addr": "",
+          "prob": 0.2567206621170044,
+          "reason": "Scored P=0.257 below threshold"
+        },
+        {
+          "s1_id": "S1-958297307",
+          "s1_name": "Hearn Jersey, LLC",
+          "s1_addr": "Fairfax County, Unit STE 103, VA, 7336 Route 29",
+          "true_id": "S3-103154542",
+          "true_name": "Hearn LLC Center",
+          "true_addr": "7336 Route 29, Virginia, Falls Church",
+          "prob": 0.07111362367868423,
+          "reason": "Scored P=0.071 below threshold"
+        },
+        {
+          "s1_id": "S1-958297307",
+          "s1_name": "Hearn Jersey, LLC",
+          "s1_addr": "Fairfax County, Unit STE 103, VA, 7336 Route 29",
+          "true_id": "S3-278439020",
+          "true_name": "Hearn LLC Center",
+          "true_addr": "7336 Route 29, Falls Church, Virginia",
+          "prob": 0.07111362367868423,
+          "reason": "Scored P=0.071 below threshold"
+        },
+        {
+          "s1_id": "S1-681160793",
+          "s1_name": "Divine Educational Society",
+          "s1_addr": "Plot No 01, Sect-06 Rajani, Khand, Sharda Nagar, Lucknow, Uttar Pradesh",
+          "true_id": "S3-987734207",
+          "true_name": "Divine Educational Service (ID: 25610)",
+          "true_addr": "01, NULL, Lucknow, \u0909\u0924\u094d\u0924\u0930 \u092a\u094d\u0930\u0926\u0947\u0936",
+          "prob": 0.21587024629116058,
+          "reason": "Scored P=0.216 below threshold"
+        },
+        {
+          "s1_id": "S1-991226123",
+          "s1_name": "One Infra Private Limited",
+          "s1_addr": "B-803, Safal Solitaire Corporate Park Nr Divya Bhaskar Press S G Highway Makarba, Ahmedabad, Gujarat",
+          "true_id": "S3-952060287",
+          "true_name": "One Private  Limited Partners",
+          "true_addr": "Hn D/409 B-803, Ahmedabad, GJ",
+          "prob": 0.5530107021331787,
+          "reason": "Scored P=0.553 below threshold"
+        }
+      ],
+      "false_merges": [
+        {
+          "s1_id": "S1-383740360",
+          "s1_name": "Sindt and Swaney Inc",
+          "s1_addr": "Champion, 36861 Van Brocklin Road, NY",
+          "cand_id": "S3-230826619",
+          "cand_name": "Sindt and Swaney Corp",
+          "cand_addr": "36870 Van Brocklin Rd, Crathage CITY, New York",
+          "prob": 0.9888296723365784
+        },
+        {
+          "s1_id": "S1-321648485",
+          "s1_name": "Herman Total Software LLC",
+          "s1_addr": "1151 Birdwell Drive, Gallatin, TN",
+          "cand_id": "S2-375083807",
+          "cand_name": "Herman Total Restaurant [Llc]",
+          "cand_addr": "1164 BIRDWELL DR, GALLATIN, TN",
+          "prob": 0.9286167621612549
+        },
+        {
+          "s1_id": "S1-988131510",
+          "s1_name": "Hunger Guild",
+          "s1_addr": "Eagle Mountain, UT, 1132 Hoof Print Drive",
+          "cand_id": "S2-355055649",
+          "cand_name": "Hunger Guild Holdings",
+          "cand_addr": "1133 HOOF PRINT DRIVE, EAGLE MOUNTAIN, UT",
+          "prob": 0.9928780794143677
+        },
+        {
+          "s1_id": "S1-958475533",
+          "s1_name": "Big Auto Body",
+          "s1_addr": "201 High Ridge Trail, Rio Rancho, NM",
+          "cand_id": "S2-926656275",
+          "cand_name": "BIG \u00c1UTO \u00c1UTO B\u00d3DY",
+          "cand_addr": "",
+          "prob": 0.9058738350868225
+        },
+        {
+          "s1_id": "S1-672951415",
+          "s1_name": "Hyderabad Research Limited",
+          "s1_addr": "Flat No.202, No.8/2/456, Road No.4, Banjara Hills, Hyderabad, Telangana",
+          "cand_id": "S2-203449639",
+          "cand_name": "Hyderabad Research Limited",
+          "cand_addr": "PLOT NO: D 20/PART, PHASE-I, IDA, JEEDIMETLA, HYDERABAD, Telangana",
+          "prob": 0.9613755345344543
+        }
+      ],
+      "singleton_false_merges": [
+        {
+          "s1_id": "S1-141278611",
+          "s1_name": "Compass LLC",
+          "s1_addr": "820 Center Street, Unit 2, Provo, UT",
+          "cand_id": "S3-656229637",
+          "cand_name": "Compass LLC",
+          "cand_addr": "521-A Center Street, # 20, Ludlow, Massachusetts",
+          "prob": 0.9713557958602905
+        },
+        {
+          "s1_id": "S1-141278611",
+          "s1_name": "Compass LLC",
+          "s1_addr": "820 Center Street, Unit 2, Provo, UT",
+          "cand_id": "S3-914897360",
+          "cand_name": "Compass Llc",
+          "cand_addr": "521-A Center Street, Unit 20, Ludlow, Massachusetts",
+          "prob": 0.997855544090271
+        },
+        {
+          "s1_id": "S1-338296041",
+          "s1_name": "Suryaksh Buildtech Private Limited",
+          "s1_addr": "16-11-51, Moosarambagh Malakpet, Hyderabad, Telangana",
+          "cand_id": "S2-985441801",
+          "cand_name": "\u0c35\u0c48\u0c1f\u0c4d \u0c38\u0c3e\u0c2b\u0c4d\u0c1f\u0c4d\u200c\u0c35\u0c47\u0c30\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "cand_addr": "16-11-781/39, MOOSARAMBAGH, AMBERPET, HYDERABAD, Telangana",
+          "prob": 0.839565634727478
+        },
+        {
+          "s1_id": "S1-670289577",
+          "s1_name": "Pediatric Dental Physicians Inc",
+          "s1_addr": "632 Twin Brooks Drive, Mount Vernon, WA",
+          "cand_id": "S3-538882911",
+          "cand_name": "Pediatric Dental Physicians Inc.",
+          "cand_addr": "",
+          "prob": 0.9789108633995056
+        },
+        {
+          "s1_id": "S1-784822153",
+          "s1_name": "Regional Foundation",
+          "s1_addr": "652 Front Street, Mounds, IL",
+          "cand_id": "S2-347177489",
+          "cand_name": "REGIONAL  FOUNDATION III",
+          "cand_addr": "216 ASH STREET, COBEN, IL",
+          "prob": 0.7261956334114075
+        }
+      ]
+    }
   }
 ]

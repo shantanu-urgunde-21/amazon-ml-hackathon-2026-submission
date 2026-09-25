@@ -29,9 +29,14 @@ from src.dataloader.loader import load_source, load_ground_truth
 from src.normalization.normalizer import normalize_records
 from src.filters.blocking import generate_candidates_for_s1, evaluate_blocking_recall
 from src.features.extractor import build_feature_matrix
-from src.models.classifier import cross_validate_lgbm, train_lightgbm
-from src.prediction.gate import apply_decision_gate, optimize_decision_thresholds, group_pair_predictions
+from src.prediction.gate import (
+    apply_decision_gate,
+    optimize_decision_thresholds,
+    group_pair_predictions,
+    apply_contradiction_penalties,
+)
 from src.validation.metrics import macro_fbeta
+
 
 
 def write_submission_files(
@@ -135,7 +140,7 @@ def run_pipeline(sample_n: int = None, run_test: bool = True):
     )
 
     tau_sing, tau_match, delta_prob, oof_f05 = optimize_decision_thresholds(
-        oof_probs, train_pair_keys, gt_dict, s1_train_ids
+        oof_probs, train_pair_keys, gt_dict, s1_train_ids, X=X_train
     )
 
     print(f"\n>>> BENCHMARK OOF MACRO F_0.5: {oof_f05:.4f} <<<")
@@ -171,8 +176,10 @@ def run_pipeline(sample_n: int = None, run_test: bool = True):
             for model in fold_models:
                 test_preds += model.predict(X_test, num_iteration=model.best_iteration)
             test_preds /= len(fold_models)
+            test_preds = apply_contradiction_penalties(test_preds, X_test)
 
         grouped_test = group_pair_predictions(test_preds, test_pair_keys, all_s1_ids=test_s1_ids)
+
         test_matches = apply_decision_gate(
             grouped_test,
             tau_singleton=tau_sing,

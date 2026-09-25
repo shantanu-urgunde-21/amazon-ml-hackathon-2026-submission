@@ -44,11 +44,17 @@ FEATURE_NAMES = [
     "postal_code_state",
     "building_number_state",
     "unit_state",
+    "street_num_state",
+    "street_name_sim",
+    "street_num_conflict_same_street",
+    "state_region_state",
+    "geo_conflict",
     # Candidate-Relative Context Features
     "cand_rank_name_sim",
     "cand_margin_name_sim",
     "cand_bucket_size",
 ]
+
 
 
 def slot_ternary_state(val1: str, val2: str) -> float:
@@ -116,6 +122,27 @@ def extract_pair_features(s1_row, cand_row) -> List[float]:
     unit2 = getattr(cand_row, "unit_slot", "")
     unit_state = slot_ternary_state(unit1, unit2)
 
+    # Street number and street name contradiction logic
+    st_num1 = getattr(s1_row, "primary_street_num", "")
+    st_num2 = getattr(cand_row, "primary_street_num", "")
+    street_num_state = slot_ternary_state(st_num1, st_num2)
+
+    st_name1 = getattr(s1_row, "street_name", "")
+    st_name2 = getattr(cand_row, "street_name", "")
+    if st_name1 and st_name2:
+        street_name_sim = fuzz.ratio(st_name1, st_name2) / 100.0
+    else:
+        street_name_sim = 0.0
+
+    # Explicit conflict on same street: street names match (>=0.80) but street numbers differ
+    street_num_conflict_same_street = 1.0 if (street_name_sim >= 0.80 and street_num_state == -1.0) else 0.0
+
+    # State / Region contradiction
+    reg1 = getattr(s1_row, "state_region", "")
+    reg2 = getattr(cand_row, "state_region", "")
+    state_region_state = slot_ternary_state(reg1, reg2)
+    geo_conflict = 1.0 if state_region_state == -1.0 else 0.0
+
     return [
         name_lev,
         name_sort,
@@ -137,7 +164,13 @@ def extract_pair_features(s1_row, cand_row) -> List[float]:
         postal_state,
         building_state,
         unit_state,
+        street_num_state,
+        street_name_sim,
+        street_num_conflict_same_street,
+        state_region_state,
+        geo_conflict,
     ]
+
 
 
 def build_feature_matrix(
