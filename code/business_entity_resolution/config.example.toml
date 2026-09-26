@@ -22,8 +22,8 @@ useGpu = true
 # FAISS similarity index (Phase 4): char n-gram TF-IDF -> SVD -> FAISS, reverse assignment
 embedDim = 128                # SVD dimensions per field (name, address)
 nameWeight = 0.4              # search cosine = w * cos(name) + (1 - w) * cos(address)
-revK = 3                      # each pool record looks up its revK nearest S1 records
-revMargin = 0.05              # keep non-best S1 only within this cosine of the best one
+revK = 6                      # each pool record looks up its revK nearest S1 records
+revMargin = 0.10              # keep non-best S1 only within this cosine of the best one
 nprobe = 24                   # IVF cells searched per query
 searchChunk = 500000          # pool records embedded + searched per batch (memory bound)
 

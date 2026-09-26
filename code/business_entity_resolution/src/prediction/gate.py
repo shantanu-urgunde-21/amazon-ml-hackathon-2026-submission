@@ -19,8 +19,8 @@ import numpy as np
 import pandas as pd
 
 TAU_SINGLETON_GRID = [0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80]
-TAU_MATCH_GRID = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40]
-DELTA_PROB_GRID = [0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
+TAU_MATCH_GRID = [0.01, 0.02, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60]
+DELTA_PROB_GRID = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50, 0.60, 0.80, 1.0]
 
 
 def exclusive_assignment(s1_idx: np.ndarray, pool_idx: np.ndarray, prob: np.ndarray) -> np.ndarray:

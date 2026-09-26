@@ -76,18 +76,24 @@ class PartitionedIndex:
         return D, I
 
 
-def _country_candidates(s1: pd.DataFrame, pool_batches, fit_texts: pd.DataFrame, p: dict, log=print) -> pd.DataFrame:
+def _country_candidates(s1: pd.DataFrame, pool_batches, fit_texts: pd.DataFrame, p: dict,
+                        name_proj=None, addr_proj=None, log=print) -> pd.DataFrame:
     """s1: one country's S1 records. pool_batches: iterator of (start_row, frame)
     over that country's pool. fit_texts: a sample of pool records to fit the
-    embedders on (unsupervised, no labels)."""
+    embedders on (unsupervised, no labels). Optional name_proj and addr_proj
+    are supervised metric projectors learned from fit-split ground truth."""
     name_emb = CharNgramEmbedder(p["dim"], seed=p["seed"]).fit(name_text(fit_texts))
     addr_emb = CharNgramEmbedder(p["dim"], seed=p["seed"]).fit(addr_text(fit_texts))
     del fit_texts
     s1_parts = _partition(s1["state"])
     s1_name = name_emb.transform(name_text(s1))
+    if name_proj is not None:
+        s1_name = name_proj.transform(s1_name)
     name_index = PartitionedIndex(s1_name, s1_parts)
     s1_name = s1_name.astype(np.float16)  # the index holds the float32 copy
     s1_addr = addr_emb.transform(addr_text(s1))
+    if addr_proj is not None:
+        s1_addr = addr_proj.transform(s1_addr)
     addr_index = PartitionedIndex(s1_addr, s1_parts)
     s1_addr = s1_addr.astype(np.float16)
     s1_has_addr = (s1["addr_norm"] != "").to_numpy()
@@ -98,7 +104,11 @@ def _country_candidates(s1: pd.DataFrame, pool_batches, fit_texts: pd.DataFrame,
     out = []
     for start, chunk in pool_batches:
         c_name = name_emb.transform(name_text(chunk))
+        if name_proj is not None:
+            c_name = name_proj.transform(c_name)
         c_addr = addr_emb.transform(addr_text(chunk))
+        if addr_proj is not None:
+            c_addr = addr_proj.transform(c_addr)
         c_parts = _partition(chunk["state"])
         has_addr = (chunk["addr_norm"] != "").to_numpy()
 
@@ -141,16 +151,23 @@ def _country_candidates(s1: pd.DataFrame, pool_batches, fit_texts: pd.DataFrame,
         log(f"    pool {start + len(chunk):,} (rss {psutil.Process().memory_info().rss / 1e9:.1f} GB)")
         del c_name, c_addr, dn, i_n, da, i_a, pairs
     del name_index, addr_index, s1_name, s1_addr
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
     gc.collect()
     return pd.concat(out, ignore_index=True)
 
 
-def generate_candidates(s1: pd.DataFrame, pool_batches, fit_texts: pd.DataFrame, params: dict, log=print) -> pd.DataFrame:
+def generate_candidates(s1: pd.DataFrame, pool_batches, fit_texts: pd.DataFrame, params: dict,
+                        name_proj=None, addr_proj=None, log=print) -> pd.DataFrame:
     """Candidate table for ONE country: s1_idx (row in s1), pool_idx (row in the
     country's pool, S2 then S3) + retrieval features. Callers loop over the
     country labels found in the data, so the country set stays open."""
     s1 = s1.reset_index(drop=True)
-    cands = _country_candidates(s1, pool_batches, fit_texts, params, log)
+    cands = _country_candidates(s1, pool_batches, fit_texts, params, name_proj=name_proj, addr_proj=addr_proj, log=log)
     cands["ret_fwd_rank"] = (
         cands.groupby("s1_idx")["ret_cos"].rank(ascending=False, method="first").astype(np.float32)
     )

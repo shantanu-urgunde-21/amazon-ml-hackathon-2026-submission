@@ -39,6 +39,7 @@ from src.filters import evaluate_blocking_recall, generate_candidates
 from src.models import cross_validate_model, feature_importance, predict
 from src.normalization import load_lexicon, save_lexicon
 from src.prediction import exclusive_assignment, macro_fbeta_pairs, optimize_decision_thresholds, select_pairs
+from src.retrieval import CharNgramEmbedder, addr_text, name_text, load_projector, save_projector, train_metric_projector
 
 SOURCES = {
     "train": [config.TRAIN_SOURCE1_PATH, config.TRAIN_SOURCE2_PATH, config.TRAIN_SOURCE3_PATH],
@@ -62,6 +63,7 @@ def retrieval_params() -> dict:
         "dim": config.EMBED_DIM, "name_weight": config.NAME_WEIGHT, "rev_k": config.REV_K,
         "rev_margin": config.REV_MARGIN, "nprobe": config.NPROBE, "chunk": config.SEARCH_CHUNK,
         "max_candidates": config.MAX_CANDIDATES_PER_S1, "seed": config.RANDOM_SEED,
+        "supervised_metric": True,
     }
 
 
@@ -154,6 +156,92 @@ def candidates_key() -> str:
     return hashlib.md5(key.encode()).hexdigest()[:10]
 
 
+def get_projectors(country: str, dim: int = 128):
+    """Supervised residual metric projectors for name and address (learned on fit split only)."""
+    p_dir = CACHE / "projectors"
+    p_dir.mkdir(parents=True, exist_ok=True)
+    name_path = p_dir / f"{country}_name.pt"
+    addr_path = p_dir / f"{country}_addr.pt"
+    if name_path.exists() and addr_path.exists():
+        return load_projector(name_path, dim), load_projector(addr_path, dim)
+
+    log(f"learning supervised metric projectors for [{country}] from fit-split ground truth ...")
+    s1_file, pool_files = _country_files("train", country)
+    if s1_file is None or not pool_files:
+        return None, None
+
+    rng = np.random.default_rng(config.RANDOM_SEED)
+    fit_texts = pd.concat([pd.read_parquet(f, columns=RETRIEVAL_COLUMNS) for f in pool_files], ignore_index=True)
+    fit_sample = fit_texts.iloc[np.sort(rng.choice(len(fit_texts), min(len(fit_texts), 200_000), replace=False))].reset_index(drop=True)
+    del fit_texts
+
+    name_emb = CharNgramEmbedder(dim, seed=config.RANDOM_SEED).fit(name_text(fit_sample))
+    addr_emb = CharNgramEmbedder(dim, seed=config.RANDOM_SEED).fit(addr_text(fit_sample))
+
+    split_info = get_split()
+    fit_set = set(split_info["fit"])
+    gt_df = pd.read_csv(config.TRAIN_GROUND_TRUTH_PATH, sep="\t", dtype="string[pyarrow]", keep_default_na=False)
+    gt_links = gt_df[gt_df["matched_entity_ids"] != ""].assign(m=lambda d: d["matched_entity_ids"].str.split(",")).explode("m")
+    gt_links = gt_links[gt_links["source1_entity_id"].isin(fit_set)]
+
+    s1 = pd.read_parquet(s1_file, columns=RETRIEVAL_COLUMNS)
+    pool = pd.concat([pd.read_parquet(f, columns=RETRIEVAL_COLUMNS) for f in pool_files], ignore_index=True)
+
+    s1_pos_map = pd.Series(s1.index, index=s1["entity_id"])
+    pool_pos_map = pd.Series(pool.index, index=pool["entity_id"])
+
+    fit_true = gt_links[gt_links["source1_entity_id"].isin(s1_pos_map.index) & gt_links["m"].isin(pool_pos_map.index)].copy()
+    fit_true["s1_idx"] = fit_true["source1_entity_id"].map(s1_pos_map).to_numpy()
+    fit_true["pos_idx"] = fit_true["m"].map(pool_pos_map).to_numpy()
+
+    # Mine hard negatives: from existing candidate cache if present, else random pool records
+    cand_files = list((CACHE / "candidates").glob(f"train_{country}.*.parquet"))
+    if cand_files:
+        cands_prev = pd.read_parquet(cand_files[0])
+        s1_in_fit = s1["entity_id"].isin(fit_set).to_numpy()
+        cands_fit = cands_prev[s1_in_fit[cands_prev["s1_idx"].to_numpy()]].copy()
+        s1_map = s1["entity_id"].to_numpy()
+        pool_map = pool["entity_id"].to_numpy()
+        cands_fit["s1_id"] = s1_map[cands_fit["s1_idx"].to_numpy()]
+        cands_fit["p_id"] = pool_map[cands_fit["pool_idx"].to_numpy()]
+        true_pairs_set = set(zip(fit_true["source1_entity_id"].to_numpy(), fit_true["m"].to_numpy()))
+        cand_pairs_fit = list(zip(cands_fit["s1_id"].to_numpy(), cands_fit["p_id"].to_numpy()))
+        cand_is_false = np.array([p not in true_pairs_set for p in cand_pairs_fit])
+        hard_negs_df = cands_fit[cand_is_false].groupby("s1_idx").first().reset_index()
+        triplets = fit_true.merge(hard_negs_df[["s1_idx", "pool_idx"]].rename(columns={"pool_idx": "neg_idx"}), on="s1_idx", how="inner")
+    else:
+        n_triplets = min(len(fit_true), 150_000)
+        triplets = fit_true.sample(n=n_triplets, random_state=config.RANDOM_SEED).reset_index(drop=True)
+        triplets["neg_idx"] = rng.choice(len(pool), len(triplets), replace=True)
+
+    n_sample = min(len(triplets), 150_000)
+    trip_sample = triplets.sample(n=n_sample, random_state=config.RANDOM_SEED).reset_index(drop=True)
+
+    s1_sub = s1.iloc[trip_sample["s1_idx"].to_numpy()]
+    pos_sub = pool.iloc[trip_sample["pos_idx"].to_numpy()]
+    neg_sub = pool.iloc[trip_sample["neg_idx"].to_numpy()]
+
+    # Train Name Projector
+    a_n = name_emb.transform(name_text(s1_sub))
+    p_n = name_emb.transform(name_text(pos_sub))
+    n_n = name_emb.transform(name_text(neg_sub))
+    name_proj = train_metric_projector(a_n, p_n, n_n, epochs=4, lr=1e-3, log=log)
+    save_projector(name_proj, name_path)
+
+    # Train Address Projector
+    has_both_addr = (s1_sub["addr_norm"] != "").to_numpy() & (pos_sub["addr_norm"] != "").to_numpy()
+    if has_both_addr.sum() > 1000:
+        a_a = addr_emb.transform(addr_text(s1_sub[has_both_addr]))
+        p_a = addr_emb.transform(addr_text(pos_sub[has_both_addr]))
+        n_a = addr_emb.transform(addr_text(neg_sub[has_both_addr]))
+        addr_proj = train_metric_projector(a_a, p_a, n_a, epochs=4, lr=1e-3, log=log)
+        save_projector(addr_proj, addr_path)
+    else:
+        addr_proj = None
+
+    return name_proj, addr_proj
+
+
 def candidates(split: str, country: str):
     """Candidate pairs (row positions within the country's S1 / pool frames)."""
     path = CACHE / "candidates" / f"{split}_{country}.{candidates_key()}.parquet"
@@ -168,7 +256,9 @@ def candidates(split: str, country: str):
     fit = fit.iloc[np.sort(rng.choice(len(fit), min(len(fit), 200_000), replace=False))].reset_index(drop=True)
     gc.collect()
     batches = _pool_batches(pool_files, RETRIEVAL_COLUMNS, config.SEARCH_CHUNK)
-    cands = generate_candidates(s1, batches, fit, retrieval_params(), log=log)
+    name_proj, addr_proj = get_projectors(country, retrieval_params()["dim"])
+    cands = generate_candidates(s1, batches, fit, retrieval_params(),
+                                name_proj=name_proj, addr_proj=addr_proj, log=log)
     path.parent.mkdir(parents=True, exist_ok=True)
     cands.to_parquet(path, index=False)
     log(f"  {len(cands):,} pairs ({len(cands) / max(1, len(s1)):.2f} per S1)")

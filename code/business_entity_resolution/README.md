@@ -216,7 +216,8 @@ src/
 ├── dataloader/          loader.py: TSV loading, fit/holdout split, lexicon building, normalized parquet cache
 ├── normalization/       lexicons.py (legal forms, states, abbreviations), text.py (folding, phonetic key),
 │                        transliterate.py (lexicon learning), normalizer.py (name / address parsing)
-├── retrieval/           embedder.py (char n-gram TF-IDF + SVD), index.py (FAISS flat index, GPU/CPU)
+├── retrieval/           embedder.py (char n-gram TF-IDF + SVD), index.py (FAISS / PyTorch CUDA flat index),
+│                        projector.py (supervised residual metric projector)
 ├── filters/             blocking.py: partitioned FAISS reverse assignment, blocking recall
 ├── features/            extractor.py: the 36 pair features
 ├── models/              classifier.py: XGBoost + GroupKFold, prediction, feature importance
@@ -229,7 +230,7 @@ src/
 | :--- | :--- |
 | `dataloader/loader.py` | `load_source()`, `load_ground_truth()`, `split_s1_ids()`, `build_lexicon()`, `build_normalized()` |
 | `normalization/` | `normalize_records()`, `normalize_name()`, `normalize_address()`, `fold()`, `phonetic_key()`, `learn_lexicon()` |
-| `retrieval/` | `CharNgramEmbedder`, `name_text()`, `addr_text()`, `flat_index()`, `gpu_available()` |
+| `retrieval/` | `CharNgramEmbedder`, `name_text()`, `addr_text()`, `flat_index()`, `gpu_available()`, `MetricResidualProjector`, `train_metric_projector()` |
 | `filters/blocking.py` | `generate_candidates()`, `PartitionedIndex`, `evaluate_blocking_recall()` |
 | `features/extractor.py` | `build_features()`, `FEATURE_NAMES` |
 | `models/classifier.py` | `cross_validate_model()`, `predict()`, `train_model()`, `feature_importance()` |

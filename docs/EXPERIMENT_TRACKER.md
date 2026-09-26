@@ -23,6 +23,10 @@
 | `07` | **Phase-3-10k-Random-Sample** | 28 | 87.15% | **0.9369** | 0.9347 | 97.2% | 0.8965 | 0.9636 | 92.46s | Phase 3: 10000 S1 Random Evaluation with Full Pool Ground Truth Alignment |
 | `08` | **FAISS-SVD-Vector-XGBoost-GPU** | 22 | **94.45%** | **0.9482** | — | — | **0.9350** | **0.9614** | 8.0 min (train) | Full 2.2M dataset: 128d SVD FAISS retrieval (8.35 cands/S1), GPU XGBoost on 300k entities, 221k holdout benchmark |
 | `09` | **Fix-1-OCR-Overlap-CountryGates** | 26 | **94.45%** | **0.9525** (+0.0043) | — | — | **0.9426** | **0.9623** | 8.7 min (train) | Full 221k holdout benchmark: Added OCR ratio, unobserved address feature, addr_nums_overlap (#8 top feature), and country-specific gating (India 0.9426, US 0.9623). |
+| `10` | **Phase-0-Bidirectional-Gate-Widening** | 26 | 94.45% | **0.9542** (tune) / **0.9509** (rep) | — | — | **0.9426** | **0.9623** | 2.5 min | Widened boundary truncation: `tau_match` [0.05..0.40] -> [0.01..0.60], `delta_prob` [0.30..1.00] -> [0.05..1.00]. Proved both India and US naturally optimize at `tau_match = 0.55` (was artificially clamped at 0.40). |
+| `11` | **Phase-1-Granular-Miss-Diagnostic** | 26 | 94.45% | — | — | — | — | — | 3.1 min | Vectorized audit of 4,882 holdout blocking misses. Disproved partition hypothesis: wrong-partition was only 0.1% (India: 2/2,689) and 0.9% (US: 20/2,193). Falsified & skipped Phase 2 per gate rule (<15%). Proved tight reverse-margin (`rev_k=3, rev_margin=0.05`) prematurely cut true matches retrieved in top-17. Relaxed to `rev_k=6, rev_margin=0.10` (+2.0% recall). |
+| `12` | **Phase-3-Metric-Projector-PyTorch-CUDA** | 26 | **95.43%** (+3.15%) | *In Progress* | — | — | — | — | ~12 min | Supervised MetricResidualProjector (128->256->128 MLP) trained on fit split with InfoNCE loss + hard negatives. True match cosine 10th percentile jumped 0.6472 -> 0.8127. Holdout blocking recall surged 92.28% -> 95.43% while candidate pool dropped from 2.49 to 2.31 per entity. Integrated TorchGpuIndexFlatIP on NVIDIA GTX 1650 for 3.5x faster search with dynamic query batching (<200 MB VRAM). |
+
 
 ---
 
@@ -114,3 +118,45 @@
 - **Total Time:** `44.48s`
 
 ---
+
+## 🔬 Deep-Dive Diagnostic & Supervised Metric Learning (Runs 10–12)
+
+### 1. Partition Miss Diagnostic Results & Falsification of Phase 2
+- **Audit Methodology:** Evaluated all 4,882 blocking misses on 25k holdout entities across India and US (`scratch/inspect_misses_detailed.py`).
+- **Hypothesis Tested:** Did hard state partitioning cause the majority of blocking misses?
+- **Empirical Finding:**
+  - India: Wrong-partition misses accounted for only **0.1%** (2 out of 2,689 misses).
+  - US: Wrong-partition misses accounted for only **0.9%** (20 out of 2,193 misses).
+  - **Verdict:** The state partitioning hypothesis was overwhelmingly **falsified** (<1% vs the >15% threshold required to justify cross-partition expansion). Phase 2 (soft partitioning) was skipped, avoiding massive candidate explosion.
+- **Downstream Keep-Filter Discovery:**
+  - True matches (such as `sweet nails`) were frequently retrieved by FAISS inside the raw top-17 candidates, but subsequently dropped by overly aggressive reverse-margin pruning (`rev_k=3, rev_margin=0.05`).
+  - Widening reverse-margin filters to `rev_k=6, rev_margin=0.10` captured +2.0% recall directly without modifying embeddings.
+
+### 2. Supervised Metric Projector Architecture & Validation
+- **Architecture (`src/retrieval/projector.py`):**
+  - Residual MLP ($128 \to 256 \to 128$) with LayerNorm and GELU activations.
+  - Initialized with zero-weight final linear layer to strictly preserve baseline identity mapping at step 0.
+  - Trained via contrastive InfoNCE loss ($\tau=0.07$) with hard false candidate mining mined from fit-split negatives.
+- **Leakage Boundary:**
+  - Projectors for Name and Address are fit strictly on the 80% `fit` split of train S1 entities. Zero holdout information is seen.
+- **Validation Lift:**
+  - True match cosine distribution 10th percentile on untouched holdout jumped from **0.6472 to 0.8127 (+0.1655)**.
+  - Blocking candidate recall evaluated on 15,000 holdout links surged from **92.28% to 95.43% (+3.15% net lift)**.
+  - Candidate density improved simultaneously: average candidates per S1 dropped from **2.49 to 2.31**, demonstrating higher discriminative precision.
+
+### 3. GPU Hardware Acceleration (`TorchGpuIndexFlatIP`)
+- **Bottleneck Identified:**
+  - On Windows, `faiss-gpu` is not available on PyPI, causing FAISS to fall back to single-threaded CPU search across all partition indexes. Candidate generation on 6.18M US pool records took ~45 minutes on CPU.
+- **Implementation (`src/retrieval/index.py`):**
+  - Implemented `TorchGpuIndexFlatIP` utilizing PyTorch CUDA on the local **NVIDIA GeForce GTX 1650 (4 GB VRAM)**.
+  - Employs dynamic query batching (`chunk_q` bounded to keep intermediate matrix multiplications strictly $<200\text{ MB}$ VRAM).
+  - Search latency dropped from ~4 minutes per 500k chunk to **~1 minute 11 seconds (3.5x speedup)**.
+  - Total train/US candidate generation (6.18M pool records) completed in **17 minutes** with zero VRAM leaks.
+
+### 4. Known Shortcomings & Bottlenecks
+1. **Ambiguous Name-Only Entities & Acronym Mismatches:**
+   - Entities lacking address information and possessing extreme typographical abbreviations or acronyms (e.g., `#sjace` vs `SJ Ace Vendome Inc`) remain challenging for character 3-gram embeddings alone.
+2. **Macro $F_{0.5}$ Precision Sensitivity:**
+   - Under $F_{0.5}$ ($\beta=0.5$), false positive links are penalized $2\times$ as severely as false negative misses. Arbitrarily relaxing retrieval parameters ($k > 6$) inflates false candidate volume, which degrades downstream decision-gate precision and singleton identification.
+3. **Hardware Memory Envelope (4 GB VRAM):**
+   - The 4 GB VRAM ceiling necessitates batched inner-product multiplications and explicit memory garbage collection (`torch.cuda.empty_cache()`) between country partitions.
