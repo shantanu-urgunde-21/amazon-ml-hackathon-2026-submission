@@ -5,10 +5,9 @@ reordered words and transliteration residue. Character 2-4-grams inside word
 boundaries survive all of these, and the SVD keeps the n-gram co-occurrence
 structure in a small dense vector that FAISS can search.
 
-Two embedders are fitted per country (name and address). A record's search
-vector is their weighted concatenation, so cosine(search vectors) =
-w * cos(name) + (1 - w) * cos(address). A record with an empty address gets a
-zero address part and is searched on its name only.
+Two embedders are fitted per country, one for names and one for addresses.
+filters/blocking.py searches each view in FAISS and re-scores the found pairs
+with w * cos(name) + (1 - w) * cos(address).
 """
 
 import numpy as np
@@ -62,7 +61,3 @@ class CharNgramEmbedder:
             out[i:i + X.shape[0]] = normalize(self.svd.transform(X))
         return out
 
-
-def search_vectors(name_vec: np.ndarray, addr_vec: np.ndarray, name_weight: float) -> np.ndarray:
-    v = np.hstack([name_vec * np.sqrt(name_weight), addr_vec * np.sqrt(1.0 - name_weight)])
-    return normalize(v).astype(np.float32)

@@ -91,13 +91,9 @@ Treating the one-record-one-entity structure as a retrieval constraint gives sma
 
 ### A. Code Artefacts
 
-`code/business_entity_resolution/` (entry point `src/main.py`; stages in `src/pipeline.py`; see its `README.md`):
-
-```bash
-make init
-cp code/business_entity_resolution/config.example.toml code/business_entity_resolution/config.toml
-make run          # writes output/candidate_pairs.tsv and output/matching_results.tsv
-```
+The runnable pipeline is `code/business_entity_resolution/` (entry point `src/main.py`). Its
+`README.md` is the single guide to it: how to reproduce both output files on GPU or CPU, what each
+stage does, the validation protocol, results, and a map of the code.
 
 ### B. Additional Results
 

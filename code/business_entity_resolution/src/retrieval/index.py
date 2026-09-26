@@ -12,10 +12,9 @@ config `useGpu = true`, flat indexes live on the GPU. They are exact, so the
 results are identical to the CPU `faiss-cpu` package, only faster.
 """
 
-import math
+from typing import Any
 
 import faiss
-import numpy as np
 
 import src.config as config
 
@@ -26,8 +25,14 @@ def gpu_available() -> bool:
     return bool(config.USE_GPU) and hasattr(faiss, "StandardGpuResources") and faiss.get_num_gpus() > 0
 
 
-def flat_index(d: int):
-    """Exact inner-product index (cosine for L2-normalized vectors)."""
+def flat_index(d: int) -> Any:
+    """Exact inner-product index (cosine for L2-normalized vectors).
+
+    Typed as Any on purpose: FAISS replaces `add(x)` / `search(x, k)` with
+    numpy-friendly wrappers at import time, but its generated type stubs still
+    describe the C++ signatures `add(n, x)` / `search(n, x, k, D, I)`, which
+    type checkers would flag at every call site.
+    """
     global _GPU_RESOURCES
     if gpu_available():
         if _GPU_RESOURCES is None:
@@ -35,27 +40,3 @@ def flat_index(d: int):
             _GPU_RESOURCES.setTempMemory(256 * 1024 * 1024)  # small GPUs (4 GB) need headroom for the vectors
         return faiss.GpuIndexFlatIP(_GPU_RESOURCES, d)
     return faiss.IndexFlatIP(d)
-
-
-def build_index(vectors: np.ndarray, ivf_threshold: int = 200_000, nprobe: int = 24, seed: int = 42):
-    """Approximate IVF index for large CPU-only use (exact flat below `ivf_threshold`)."""
-    n, d = vectors.shape
-    if n < ivf_threshold or gpu_available():
-        index = flat_index(d)
-    else:
-        nlist = int(4 * math.sqrt(n))
-        index = faiss.IndexIVFFlat(faiss.IndexFlatIP(d), d, nlist, faiss.METRIC_INNER_PRODUCT)
-        rng = np.random.default_rng(seed)
-        index.train(vectors[rng.choice(n, min(n, nlist * 64), replace=False)])
-        index.nprobe = nprobe
-    index.add(vectors)
-    return index
-
-
-def search(index, queries: np.ndarray, k: int, chunk: int = 200_000):
-    """Top-k (similarities, ids) for every query row; -1 ids are padding."""
-    D = np.empty((len(queries), k), dtype=np.float32)
-    I = np.empty((len(queries), k), dtype=np.int64)
-    for i in range(0, len(queries), chunk):
-        D[i:i + chunk], I[i:i + chunk] = index.search(queries[i:i + chunk], k)
-    return D, I

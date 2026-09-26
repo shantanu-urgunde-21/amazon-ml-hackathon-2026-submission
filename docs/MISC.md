@@ -11,7 +11,7 @@
 
 ## 1. Documentation Map
 * `TASK_CHECKLIST.md`: Milestone progress and status tracker.
-* `AGENT_EXECUTION_PLAN.md`: System architecture and module contracts.
+* `code/business_entity_resolution/README.md`: **the** guide: how to run (GPU), pipeline, validation, results, code map.
 * `EXPERIMENT_TRACKER.md`: Benchmark history, CV metrics, and failure attribution.
 * `DATASET_LANGUAGE_AND_SCRIPT_ANALYSIS.md`: Empirical script distribution and cross-script strategy.
 * `LANGUAGEGAPRESOLUTION.MD`: Linguistic edge cases (Devanagari schwa, French elisions).
