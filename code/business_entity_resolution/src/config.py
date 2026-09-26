@@ -75,8 +75,8 @@ cfg = _to_namespace(_raw)
 OUTPUT_DIR = Path(cfg.outputPaths.outputDir)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 MATCHING_RESULTS_PATH = OUTPUT_DIR / cfg.outputPaths.matchingResultsFile
-CANDIDATE_PAIRS_PATH = OUTPUT_DIR / cfg.outputPaths.candidatePairsFile
-CACHE_DIR = Path(cfg.outputPaths.cacheDir)
+CACHE_DIR = Path(getattr(cfg.outputPaths, "cacheDir", PROJECT_ROOT / "cache"))
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Training datasets
 TRAIN_DIR = Path(cfg.datasetPaths.trainPath)

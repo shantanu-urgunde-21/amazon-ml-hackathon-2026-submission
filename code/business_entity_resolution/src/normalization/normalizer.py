@@ -106,7 +106,7 @@ def normalize_name(raw: str, country: str, lexicon: dict) -> tuple:
         alias = " ".join(_legal_and_core(parts[-1].split(), country)[1])
     elif alias:
         alias = " ".join(_legal_and_core(fold(alias).split(), country)[1])
->>>>>>> origin/knlProto
+
 
     core_s = " ".join(core) if core else " ".join(norm)
     return (
