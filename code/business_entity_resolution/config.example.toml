@@ -1,0 +1,30 @@
+# Relative paths are resolved against the repo root (the folder containing code/).
+# Absolute paths and ~ also work.
+
+[datasetPaths]
+trainPath = "student_resource/dataset/train"
+testPath = "student_resource/dataset/test"
+gtPath = "student_resource/dataset/train/train_ground_truth.tsv"
+validateScript = "student_resource/utils/validate_submission.py"
+
+[outputPaths]
+outputDir = "output"
+matchingResultsFile = "matching_results.tsv"
+candidatePairsFile = "candidate_pairs.tsv"
+
+[params]
+# Blocking & candidate generation
+maxCandidatesPerS1 = 60       # upper bound on candidates per S1 entity
+maxTokenBucketSize = 1500     # inverted-index frequency ceiling for common words
+minNameTokenLen = 3           # ignore 1-2 char tokens for name blocking
+ngramSize = 3                 # character n-gram size
+
+# Modeling & validation
+randomSeed = 42
+nFolds = 5
+beta = 0.5                    # F_beta metric beta
+
+# Decision gate search bounds
+defaultTauSingleton = 0.60
+defaultTauMatch = 0.55
+defaultDeltaProb = 0.15
