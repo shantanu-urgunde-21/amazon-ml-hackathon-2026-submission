@@ -58,5 +58,5 @@
 ### Phase 5: Submission
 
 - [x] Full test inference, including France (unseen in training).
-- [x] `output/*.tsv` pass `validate_submission.py` (see README → Results).
+- [x] `outputs/*.tsv` pass `validate_submission.py` (see README → Results).
 - [x] `make package TEAM=<name>` builds the submission zip.

@@ -43,13 +43,13 @@ freeze: init
 activate: init
 	@echo "source $(VENV)/bin/activate"
 
-# Submission layout: output/, code/business_entity_resolution/, Documentation_template.md
+# Submission layout: outputs/, code/business_entity_resolution/, Documentation_template.md
 package: clean
-	@test -f output/matching_results.tsv || (echo "missing output/matching_results.tsv" && exit 1)
-	@test -f output/candidate_pairs.tsv  || (echo "missing output/candidate_pairs.tsv" && exit 1)
+	@test -f outputs/matching_results.tsv || (echo "missing outputs/matching_results.tsv" && exit 1)
+	@test -f outputs/candidate_pairs.tsv  || (echo "missing outputs/candidate_pairs.tsv" && exit 1)
 	rm -f $(ZIP_NAME)
 	zip -r $(ZIP_NAME) \
-		output/matching_results.tsv output/candidate_pairs.tsv \
+		outputs/matching_results.tsv outputs/candidate_pairs.tsv \
 		$(PKG) \
 		Documentation_template.md \
 		-x '*/.venv/*' '*/__pycache__/*' '*.pyc' '*/.DS_Store'

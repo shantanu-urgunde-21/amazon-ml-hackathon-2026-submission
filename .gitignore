@@ -5,6 +5,6 @@ __pycache__/
 *_submission.zip
 /.vscode
 personal-documentation/
-/outputs
+/output
 /code/business_entity_resolution/config.toml
 /cache/
