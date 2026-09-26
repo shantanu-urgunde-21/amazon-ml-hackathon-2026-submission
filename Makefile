@@ -2,6 +2,7 @@ PY_VER   := 3.12
 PYTHON   ?= python$(PY_VER)
 PKG      := ./code/business_entity_resolution
 VENV     := $(PKG)/.venv
+REQS     := $(PKG)/requirements$(if $(GPU),-gpu,).txt
 VPY      := $(CURDIR)/$(VENV)/bin/python
 TEAM     ?= team
 ZIP_NAME := $(TEAM)_submission.zip
@@ -12,7 +13,8 @@ CHECK_PY  = $(VPY) -c 'import sys; v="%d.%d" % sys.version_info[:2]; sys.exit(0 
 .PHONY: help init run freeze activate package clean clean-all
 
 help:
-	@echo "make init             create $(VENV) and install requirements.txt"
+	@echo "make init             create $(VENV) and install requirements.txt (CPU)"
+	@echo "make init GPU=1       same, with requirements-gpu.txt (FAISS on CUDA)"
 	@echo "make run              run src/main.py inside the venv"
 	@echo "make freeze           pin installed packages into requirements.txt"
 	@echo "make package TEAM=x   build x_submission.zip"
@@ -20,11 +22,11 @@ help:
 	@echo "make clean-all        remove caches and the venv"
 
 # Reinstalls whenever requirements.txt changes
-$(VENV)/.installed: $(PKG)/requirements.txt
+$(VENV)/.installed: $(REQS)
 	test -d $(VENV) || $(PYTHON) -m venv $(VENV)
 	@$(CHECK_PY)
 	$(VPY) -m pip install --upgrade pip
-	$(VPY) -m pip install -r $(PKG)/requirements.txt
+	$(VPY) -m pip install -r $(REQS)
 	touch $@
 
 init: $(VENV)/.installed

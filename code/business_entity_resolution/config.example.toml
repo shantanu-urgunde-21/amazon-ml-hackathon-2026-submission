@@ -11,16 +11,33 @@ validateScript = "student_resource/utils/validate_submission.py"
 outputDir = "output"
 matchingResultsFile = "matching_results.tsv"
 candidatePairsFile = "candidate_pairs.tsv"
+cacheDir = "cache"            # normalized parquet, lexicon, FAISS indexes, models (regenerable)
+
+[gpu]
+# Use the NVIDIA GPU for FAISS search and XGBoost training when one is available
+# (needs requirements-gpu.txt). Falls back to CPU automatically otherwise.
+useGpu = true
+
+[retrieval]
+# FAISS similarity index (Phase 4): char n-gram TF-IDF -> SVD -> FAISS, reverse assignment
+embedDim = 128                # SVD dimensions per field (name, address)
+nameWeight = 0.4              # search cosine = w * cos(name) + (1 - w) * cos(address)
+revK = 3                      # each pool record looks up its revK nearest S1 records
+revMargin = 0.05              # keep non-best S1 only within this cosine of the best one
+nprobe = 24                   # IVF cells searched per query
+searchChunk = 500000          # pool records embedded + searched per batch (memory bound)
 
 [params]
 # Blocking & candidate generation
-maxCandidatesPerS1 = 60       # upper bound on candidates per S1 entity
+maxCandidatesPerS1 = 30       # hard cap on candidates per S1 entity
 maxTokenBucketSize = 1500     # inverted-index frequency ceiling for common words
 minNameTokenLen = 3           # ignore 1-2 char tokens for name blocking
 ngramSize = 3                 # character n-gram size
 
 # Modeling & validation
 randomSeed = 42
+holdoutFrac = 0.2             # share of train S1 entities never used for fitting (the benchmark)
+trainEntities = 300000        # fit-split S1 entities whose candidate pairs train the model
 nFolds = 5
 beta = 0.5                    # F_beta metric beta
 

@@ -1,228 +1,177 @@
-"""
-Scalable Inverted Index Blocking for Business Entity Resolution.
-Generates candidate pairs between Source 1 and Source 2/3 using:
-1. Rare informative name tokens (IDF / frequency capped)
-2. Cross-script phonetic skeletons (bridging Hindi-English transliterations)
-3. Address numeric tokens (PINs, street numbers)
-4. Character 3-grams (for typo tolerance)
+"""Candidate generation (blocking) with FAISS similarity indexes (Phase 4).
+
+Per country (matches never cross countries):
+  1. fit char n-gram embedders for names and addresses on a sample of the
+     country's pool records (retrieval/embedder.py; unsupervised)
+  2. index the country's S1 records in exact FAISS inner-product indexes, one
+     per state partition and per view (name, address). True matches agree on
+     state in > 98.8% of links; WA/DC and AP/Telangana share a partition
+     because the data mixes them.
+  3. stream the S2/S3 pool through the indexes in batches. Each pool record
+     looks up its nearest S1 records by name and by address (reverse
+     assignment, see retrieval/index.py). Those are re-scored with
+        cos = w * cos(name) + (1 - w) * cos(address)     (name only if an address is empty)
+     and kept when they are
+        - the best S1 by name alone or by address alone, or
+        - the best by combined similarity, or
+        - within the top `rev_k` and within `rev_margin` of the best.
+     A pool record without a state searches every partition of its country;
+     one without an address searches by name only.
+
+Each pool record proposes only a handful of S1 entities, so an S1 entity's
+candidate set is small and adapts to how many records point at it. The
+similarities, ranks and margins become model features.
 """
 
-from collections import defaultdict
-from typing import Dict, List, Set, Tuple
-import pandas as pd
+import gc
+from typing import Dict, List, Set
+
+import psutil
 import numpy as np
+import pandas as pd
 
-COMMON_LEGAL_WORDS = {
-    "ltd", "limited", "pvt", "private", "inc", "incorporated", "corp", "corporation",
-    "llc", "co", "company", "and", "the", "services", "solutions", "enterprises",
-    "group", "industries", "sarl", "sas", "sa", "gmbh", "international"
-}
+from src.retrieval.embedder import CharNgramEmbedder, addr_text, name_text
+from src.retrieval.index import flat_index
+
+# states whose records are routinely written as the other one
+PARTITION_ALIASES = {"us_dc": "us_wa", "in_ts": "in_ap"}
 
 
-def build_inverted_indexes(
-    df_pool: pd.DataFrame,
-    max_token_bucket: int = 1500,
-    max_num_bucket: int = 1000,
-) -> Tuple[
-    Dict[str, List[int]],
-    Dict[str, List[int]],
-    Dict[str, List[int]],
-    Dict[str, List[int]],
-    Dict[str, List[int]],
-]:
-    """
-    Builds inverted indexes mapping tokens/numbers/ngrams/phonetics to row indices:
-    1. Rare informative name tokens (capped at max_token_bucket)
-    2. Compound tokens for high-frequency names (token_pin, token_state)
-    3. Cross-script phonetic skeletons
-    4. Address numeric tokens
-    5. Character 3-grams across first 2 informative tokens
-    """
-    token_to_idx: Dict[str, List[int]] = defaultdict(list)
-    phonetic_to_idx: Dict[str, List[int]] = defaultdict(list)
-    num_to_idx: Dict[str, List[int]] = defaultdict(list)
-    ngram_to_idx: Dict[str, List[int]] = defaultdict(list)
+def _partition(state: pd.Series) -> np.ndarray:
+    return state.replace(PARTITION_ALIASES).to_numpy()
 
-    has_phonetic = "phonetic_tokens" in df_pool.columns
 
-    for row in df_pool.itertuples():
-        idx = row.Index
-        tokens = row.name_tokens
-        numbers = row.numeric_tokens
-        norm_name = row.norm_name
+class PartitionedIndex:
+    """Exact FAISS flat inner-product index per partition over one vector view of S1 records."""
 
-        # 1. Rare name tokens
-        for t in tokens:
-            if len(t) >= 3 and t not in COMMON_LEGAL_WORDS:
-                token_to_idx[t].append(idx)
+    def __init__(self, vectors: np.ndarray, parts: np.ndarray):
+        self.ids, self.index = {}, {}
+        for p in np.unique(parts):
+            rows = np.flatnonzero(parts == p)
+            idx = flat_index(vectors.shape[1])  # GPU when available (exact either way)
+            idx.add(np.ascontiguousarray(vectors[rows]))
+            self.ids[p], self.index[p] = rows, idx
 
-        # 2. Phonetic skeletons (cross-script bridge)
-        if has_phonetic:
-            for ph in row.phonetic_tokens:
-                if len(ph) >= 2 and ph not in COMMON_LEGAL_WORDS:
-                    phonetic_to_idx[ph].append(idx)
+    def search(self, queries: np.ndarray, parts: np.ndarray, k: int):
+        """Top-k (similarity, S1 row) per query. Queries whose partition is
+        unknown ("" or unseen) search every partition and keep the global top-k."""
+        D = np.full((len(queries), k), -np.inf, dtype=np.float32)
+        I = np.full((len(queries), k), -1, dtype=np.int64)
+        known = np.isin(parts, list(self.index))
+        for p in np.unique(parts[known]):
+            q = np.flatnonzero(parts == p)
+            d, i = self.index[p].search(np.ascontiguousarray(queries[q]), k)
+            D[q], I[q] = d, np.where(i >= 0, self.ids[p][np.maximum(i, 0)], -1)
+        rest = np.flatnonzero(~known)
+        if len(rest):
+            Q = np.ascontiguousarray(queries[rest])
+            for p, idx in self.index.items():
+                d, i = idx.search(Q, min(k, idx.ntotal))
+                i = np.where(i >= 0, self.ids[p][np.maximum(i, 0)], -1)
+                dd = np.hstack([D[rest], d])
+                ii = np.hstack([I[rest], i])
+                top = np.argsort(-dd, axis=1)[:, :k]
+                D[rest] = np.take_along_axis(dd, top, 1)
+                I[rest] = np.take_along_axis(ii, top, 1)
+        return D, I
 
-        # 3. Numeric tokens
-        for num in numbers:
-            num_to_idx[num].append(idx)
 
-        # 4. Character 3-grams across informative tokens
-        valid_words = [t for t in tokens if len(t) >= 3 and t not in COMMON_LEGAL_WORDS]
-        if valid_words:
-            for w in valid_words[:2]:
-                for i in range(len(w) - 2):
-                    ngram_to_idx[w[i : i + 3]].append(idx)
-        elif len(norm_name) >= 3:
-            clean_first = norm_name.replace(" ", "")[:8]
-            for i in range(len(clean_first) - 2):
-                ngram_to_idx[clean_first[i : i + 3]].append(idx)
+def _country_candidates(s1: pd.DataFrame, pool_batches, fit_texts: pd.DataFrame, p: dict, log=print) -> pd.DataFrame:
+    """s1: one country's S1 records. pool_batches: iterator of (start_row, frame)
+    over that country's pool. fit_texts: a sample of pool records to fit the
+    embedders on (unsupervised, no labels)."""
+    name_emb = CharNgramEmbedder(p["dim"], seed=p["seed"]).fit(name_text(fit_texts))
+    addr_emb = CharNgramEmbedder(p["dim"], seed=p["seed"]).fit(addr_text(fit_texts))
+    del fit_texts
+    s1_parts = _partition(s1["state"])
+    s1_name = name_emb.transform(name_text(s1))
+    name_index = PartitionedIndex(s1_name, s1_parts)
+    s1_name = s1_name.astype(np.float16)  # the index holds the float32 copy
+    s1_addr = addr_emb.transform(addr_text(s1))
+    addr_index = PartitionedIndex(s1_addr, s1_parts)
+    s1_addr = s1_addr.astype(np.float16)
+    s1_has_addr = (s1["addr_norm"] != "").to_numpy()
+    gc.collect()
+    log(f"    indexed {len(s1):,} S1 records: {len(name_index.index)} state partitions x (name, address)")
 
-    pruned_token_idx = {k: v for k, v in token_to_idx.items() if len(v) <= max_token_bucket}
-    pruned_phonetic_idx = {k: v for k, v in phonetic_to_idx.items() if len(v) <= max_token_bucket}
-    pruned_num_idx = {k: v for k, v in num_to_idx.items() if len(v) <= max_num_bucket}
-    pruned_ngram_idx = {k: v for k, v in ngram_to_idx.items() if len(v) <= max_token_bucket}
+    w, k, kk = p["name_weight"], p["rev_k"], p["rev_k"] + 2
+    out = []
+    for start, chunk in pool_batches:
+        c_name = name_emb.transform(name_text(chunk))
+        c_addr = addr_emb.transform(addr_text(chunk))
+        c_parts = _partition(chunk["state"])
+        has_addr = (chunk["addr_norm"] != "").to_numpy()
 
-    # Build compound index for frequent tokens (> max_token_bucket)
-    compound_token_idx: Dict[str, List[int]] = defaultdict(list)
-    frequent_tokens = {k for k, v in token_to_idx.items() if len(v) > max_token_bucket}
+        # nearest S1 records by name, and by address (records with an address only)
+        dn, i_n = name_index.search(c_name, c_parts, kk)
+        a_rows = np.flatnonzero(has_addr)
+        da, i_a = addr_index.search(c_addr[a_rows], c_parts[a_rows], kk)
+        pairs = pd.DataFrame({
+            "row": np.concatenate([np.repeat(np.arange(len(chunk)), kk), np.repeat(a_rows, kk)]),
+            "s1": np.concatenate([i_n.ravel(), i_a.ravel()]),
+            "top_view": np.concatenate([np.tile(np.arange(kk) == 0, len(chunk)), np.tile(np.arange(kk) == 0, len(a_rows))]),
+        })
+        pairs = pairs[pairs["s1"] >= 0].groupby(["row", "s1"], as_index=False)["top_view"].max()
+        r, s = pairs["row"].to_numpy(), pairs["s1"].to_numpy()
 
-    if frequent_tokens:
-        for row in df_pool.itertuples():
-            idx = row.Index
-            pin = getattr(row, "postal_code", "")
-            state = getattr(row, "state_region", "")
-            for t in row.name_tokens:
-                if t in frequent_tokens:
-                    if pin:
-                        compound_token_idx[f"{t}#p_{pin}"].append(idx)
-                    if state:
-                        compound_token_idx[f"{t}#s_{state}"].append(idx)
+        cos_n = np.einsum("ij,ij->i", s1_name[s].astype(np.float32), c_name[r])
+        cos_a = np.einsum("ij,ij->i", s1_addr[s].astype(np.float32), c_addr[r])
+        both = has_addr[r] & s1_has_addr[s]
+        cos = np.where(both, w * cos_n + (1 - w) * cos_a, cos_n).astype(np.float32)
+        pairs["cos"] = cos
+        pairs["rank"] = pairs.groupby("row")["cos"].rank(ascending=False, method="first") - 1
+        best = pairs.groupby("row")["cos"].transform("max").to_numpy()
+        rank = pairs["rank"].to_numpy()
+        no_addr = ~has_addr[r]  # name-only records are ambiguous: keep a wider set
+        keep = (pairs["top_view"].to_numpy()                       # best by name or by address alone
+                | (rank == 0)                                       # best combined
+                | ((rank < k) & (best - cos <= p["rev_margin"]))
+                | (no_addr & (rank < kk) & (best - cos <= 2 * p["rev_margin"])))
+        kp = keep
+        out.append(pd.DataFrame({
+            "s1_idx": s1.index.to_numpy()[s[kp]],
+            "pool_idx": start + r[kp],
+            "ret_cos": cos[kp],
+            "ret_cos_name": cos_n[kp].astype(np.float32),
+            "ret_cos_addr": np.where(both, cos_a, 0.0)[kp].astype(np.float32),
+            "ret_rev_rank": pairs["rank"].to_numpy(np.float32)[kp],
+            "ret_rev_margin": (cos - best)[kp].astype(np.float32),
+            "ret_rev_best": best[kp].astype(np.float32),
+        }))
+        log(f"    pool {start + len(chunk):,} (rss {psutil.Process().memory_info().rss / 1e9:.1f} GB)")
+        del c_name, c_addr, dn, i_n, da, i_a, pairs
+    del name_index, addr_index, s1_name, s1_addr
+    gc.collect()
+    return pd.concat(out, ignore_index=True)
 
-    pruned_compound_idx = {k: v for k, v in compound_token_idx.items() if len(v) <= max_token_bucket}
 
-    return (
-        pruned_token_idx,
-        pruned_compound_idx,
-        pruned_phonetic_idx,
-        pruned_num_idx,
-        pruned_ngram_idx,
+def generate_candidates(s1: pd.DataFrame, pool_batches, fit_texts: pd.DataFrame, params: dict, log=print) -> pd.DataFrame:
+    """Candidate table for ONE country: s1_idx (row in s1), pool_idx (row in the
+    country's pool, S2 then S3) + retrieval features. Callers loop over the
+    country labels found in the data, so the country set stays open."""
+    s1 = s1.reset_index(drop=True)
+    cands = _country_candidates(s1, pool_batches, fit_texts, params, log)
+    cands["ret_fwd_rank"] = (
+        cands.groupby("s1_idx")["ret_cos"].rank(ascending=False, method="first").astype(np.float32)
     )
+    return cands[cands["ret_fwd_rank"] <= params["max_candidates"]].reset_index(drop=True)
 
 
-def generate_candidates_for_s1(
-    df_s1: pd.DataFrame,
-    df_pool: pd.DataFrame,
-    max_candidates_per_s1: int = 50,
-) -> Dict[str, List[str]]:
-    """
-    Generates candidate S2/S3 entity IDs for each S1 entity in df_s1.
-    """
-    (
-        token_idx,
-        compound_idx,
-        phonetic_idx,
-        num_idx,
-        ngram_idx,
-    ) = build_inverted_indexes(df_pool)
-
-    pool_ids = df_pool["entity_id"].values
-    pool_countries = df_pool["country"].values
-
-    candidates_dict: Dict[str, List[str]] = {}
-    has_phonetic = "phonetic_tokens" in df_s1.columns
-
-    for row in df_s1.itertuples():
-        s1_id = row.entity_id
-        s1_country = row.country
-        s1_tokens = row.name_tokens
-        s1_numbers = row.numeric_tokens
-        s1_pin = getattr(row, "postal_code", "")
-        s1_state = getattr(row, "state_region", "")
-
-        hit_counts: Dict[int, int] = defaultdict(int)
-
-        # 1. Query name tokens (+3) & compound tokens (+2 / +3)
-        for t in s1_tokens:
-            if t in token_idx:
-                for idx in token_idx[t]:
-                    hit_counts[idx] += 3
-            else:
-                # Query compound keys for frequent corporate tokens
-                if s1_pin and f"{t}#p_{s1_pin}" in compound_idx:
-                    for idx in compound_idx[f"{t}#p_{s1_pin}"]:
-                        hit_counts[idx] += 3
-                if s1_state and f"{t}#s_{s1_state}" in compound_idx:
-                    for idx in compound_idx[f"{t}#s_{s1_state}"]:
-                        hit_counts[idx] += 2
-
-        # 2. Query phonetic skeletons (+3)
-        if has_phonetic:
-            for ph in row.phonetic_tokens:
-                if ph in phonetic_idx:
-                    for idx in phonetic_idx[ph]:
-                        hit_counts[idx] += 3
-
-        # 3. Query numeric tokens (+2)
-        for num in s1_numbers:
-            if num in num_idx:
-                for idx in num_idx[num]:
-                    hit_counts[idx] += 2
-
-        # 4. Query n-grams (+1)
-        if len(hit_counts) < max_candidates_per_s1 and s1_tokens:
-            valid_words = [t for t in s1_tokens if len(t) >= 3 and t not in COMMON_LEGAL_WORDS]
-            if valid_words:
-                for w in valid_words[:2]:
-                    for i in range(len(w) - 2):
-                        ng = w[i : i + 3]
-                        if ng in ngram_idx:
-                            for idx in ngram_idx[ng]:
-                                hit_counts[idx] += 1
-
-        if not hit_counts:
-            candidates_dict[s1_id] = []
-            continue
-
-        valid_candidates = []
-        for idx, score in hit_counts.items():
-            cand_country = pool_countries[idx]
-            if s1_country and cand_country and s1_country != cand_country:
-                continue
-            valid_candidates.append((score, pool_ids[idx]))
-
-        valid_candidates.sort(key=lambda x: x[0], reverse=True)
-        top_candidates = [cand_id for _, cand_id in valid_candidates[:max_candidates_per_s1]]
-        candidates_dict[s1_id] = top_candidates
-
-    return candidates_dict
-
-
-
-def evaluate_blocking_recall(
-    candidates_dict: Dict[str, List[str]],
-    ground_truth: Dict[str, Set[str]],
-) -> Dict[str, float]:
-    """
-    Evaluates candidate coverage against ground truth matches.
-    """
-    total_true_links = 0
-    captured_links = 0
-    candidate_lengths = []
-
-    for s1_id, candidates in candidates_dict.items():
-        candidate_lengths.append(len(candidates))
-        true_set = ground_truth.get(s1_id, set())
-        if not true_set:
-            continue
-        total_true_links += len(true_set)
-        captured_links += len(set(candidates) & true_set)
-
-    recall = captured_links / total_true_links if total_true_links > 0 else 1.0
-    avg_cands = float(np.mean(candidate_lengths)) if candidate_lengths else 0.0
-
+def evaluate_blocking_recall(cands: pd.DataFrame, s1: pd.DataFrame, pool: pd.DataFrame,
+                             ground_truth: Dict[str, Set[str]], s1_ids: List[str] = None) -> Dict[str, float]:
+    """Recall of true links, candidate set size and reduction ratio."""
+    s1_ids = s1_ids if s1_ids is not None else s1["entity_id"].tolist()
+    ids = set(s1_ids)
+    pairs = set(zip(s1["entity_id"].to_numpy()[cands["s1_idx"]], pool["entity_id"].to_numpy()[cands["pool_idx"]]))
+    pairs = {p for p in pairs if p[0] in ids}
+    total = sum(len(ground_truth.get(s, ())) for s in s1_ids)
+    captured = sum(1 for s, m in pairs if m in ground_truth.get(s, ()))
+    sizes = pd.Series([s for s, _ in pairs]).value_counts().reindex(s1_ids, fill_value=0)
     return {
-        "candidate_recall": recall,
-        "total_true_links": total_true_links,
-        "captured_links": captured_links,
-        "avg_candidates_per_s1": avg_cands,
+        "candidate_recall": captured / total if total else 1.0,
+        "captured_links": captured,
+        "total_true_links": total,
+        "avg_candidates_per_s1": float(sizes.mean()),
+        "p95_candidates_per_s1": float(sizes.quantile(0.95)),
+        "reduction_ratio": 1.0 - len(pairs) / max(1, len(s1_ids) * len(pool)),
     }

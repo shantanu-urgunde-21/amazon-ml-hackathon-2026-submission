@@ -1,6 +1,6 @@
 # Python 3.12. Direct dependencies of src/, pinned to the versions the
-# pipeline was run with. `make init` installs these into .venv (CPU only).
-# NVIDIA GPU: use requirements-gpu.txt instead (`make init GPU=1`).
+# pipeline was run with, GPU variant: FAISS on CUDA 12 (MIT). XGBoost's wheel
+# already includes CUDA support. Used by `make init GPU=1`.
 
 # data
 numpy==2.5.3
@@ -11,7 +11,7 @@ pyarrow==25.0.1
 anyascii==0.3.3
 
 # similarity index + features + model
-faiss-cpu==1.15.1
+faiss-gpu-cu12==1.14.1
 scikit-learn==1.9.1
 scipy==1.18.1
 joblib==1.6.0

@@ -1,11 +1,17 @@
 # Miscellaneous Findings, Error Audit & Technical Backlog
 **Amazon ML Challenge 2026 — Business Entity Resolution**
 
+> **Superseded (2026-09-26).** Runs `01`–`06` below were produced with `main.py --sample 5000`
+> and a pipeline version that is no longer in the repository. They cannot be reproduced. The current
+> code's `--sample` mode also took the first N rows of every file independently, so almost no true
+> matches were in the sample. The reproducible benchmark is the holdout evaluation in
+> `cache/benchmark.json` (see `code/business_entity_resolution/README.md` → Results).
+
 ---
 
 ## 1. Documentation Map
 * `TASK_CHECKLIST.md`: Milestone progress and status tracker.
-* `AGENT_EXECUTION_PLAN.md`: System architecture and module contracts.
+* `code/business_entity_resolution/README.md`: **the** guide: how to run (GPU), pipeline, validation, results, code map.
 * `EXPERIMENT_TRACKER.md`: Benchmark history, CV metrics, and failure attribution.
 * `DATASET_LANGUAGE_AND_SCRIPT_ANALYSIS.md`: Empirical script distribution and cross-script strategy.
 * `LANGUAGEGAPRESOLUTION.MD`: Linguistic edge cases (Devanagari schwa, French elisions).

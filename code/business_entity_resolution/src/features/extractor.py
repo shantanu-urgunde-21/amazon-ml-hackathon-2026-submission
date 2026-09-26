@@ -1,243 +1,101 @@
-"""
-Fast pairwise feature extraction using C++-accelerated rapidfuzz.
-Extracts:
-1. Name similarity (Levenshtein, Jaro-Winkler, Token-Sort, Token-Set, exact match)
-2. Address similarity (Levenshtein, Token-Sort, Token-Set, exact match)
-3. Numeric token overlap (count, Jaccard)
-4. Cross-script indicator and phonetic skeleton Jaccard
-5. Ternary contradiction states (+1 match, 0 missing, -1 contradiction) for:
-   - postal_code_state
-   - building_number_state
-   - unit_state
-6. Candidate-relative features (group margins, candidate rank, bucket size)
+"""Pairwise features for (S1 record, candidate) pairs, computed column-wise.
+
+All string similarities use rapidfuzz.process.cpdist, which scores aligned
+pairs in parallel C++ (no Python loop per pair), so millions of pairs take
+seconds. Inputs are the normalized frames (see normalization/normalizer.py)
+and a candidate table with columns s1_idx, pool_idx plus the retrieval
+columns produced by filters/blocking.py.
+
+Feature groups
+  name_*     name similarity (core, compact, alias, phonetic, legal form)
+  addr_*     address similarity and structured slots (+1 agree / 0 missing / -1 conflict)
+  ret_*      retrieval signals: dense cosines, forward/reverse ranks and margins
+  grp_*      candidate-relative context within the S1 entity's candidate set
 """
 
-from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple
 import numpy as np
 import pandas as pd
-from rapidfuzz import fuzz, distance
+from rapidfuzz import fuzz, process
+from rapidfuzz.distance import JaroWinkler
+
+RETRIEVAL_FEATURES = [
+    "ret_cos", "ret_cos_name", "ret_cos_addr",
+    "ret_fwd_rank", "ret_rev_rank", "ret_rev_margin", "ret_rev_best",
+]
 
 FEATURE_NAMES = [
-    # Basic Name Features
-    "name_levenshtein",
-    "name_token_sort",
-    "name_token_set",
-    "name_jaro_winkler",
-    "name_exact_match",
-    "name_len_diff_ratio",
-    "name_prefix_match",
-    # Address Features
-    "addr_token_set",
-    "addr_token_sort",
-    "addr_levenshtein",
-    "addr_exact_match",
-    # Numeric Overlap
-    "addr_numeric_overlap_count",
-    "addr_numeric_jaccard",
-    # Metadata & Cross-Script
-    "country_match",
-    "cand_is_s2",
-    "is_cross_script",
-    "phonetic_jaccard",
-    # Structured Ternary Contradiction States (+1 agree, 0 missing, -1 conflict)
-    "postal_code_state",
-    "building_number_state",
-    "unit_state",
-    "street_num_state",
-    "street_name_sim",
-    "street_num_conflict_same_street",
-    "state_region_state",
-    "geo_conflict",
-    # Candidate-Relative Context Features
-    "cand_rank_name_sim",
-    "cand_margin_name_sim",
-    "cand_bucket_size",
+    "name_ratio", "name_token_set", "name_token_sort", "name_partial", "name_jaro_winkler",
+    "name_exact", "name_compact_ratio", "name_compact_partial", "name_alias_best",
+    "name_phonetic_set", "name_legal_state", "name_len_s1", "name_len_cand", "name_first_token_eq",
+    "addr_token_set", "addr_ratio", "addr_partial", "addr_cand_empty", "addr_s1_empty",
+    "addr_state_state", "addr_house_state", "addr_nums_set",
+    "cand_is_s2", "cand_has_indic",
+    *RETRIEVAL_FEATURES,
+    "grp_size", "grp_rank_cos", "grp_margin_cos", "grp_rank_name", "grp_margin_name",
 ]
 
 
-
-def slot_ternary_state(val1: str, val2: str) -> float:
-    """
-    Returns:
-      +1.0 if both non-empty and equal (Agreement)
-       0.0 if either is missing/empty (Missing / Unavailable)
-      -1.0 if both non-empty but different (Explicit Contradiction)
-    """
-    if not val1 or not val2:
-        return 0.0
-    return 1.0 if val1 == val2 else -1.0
+def _cp(a, b, scorer, **kw):
+    return process.cpdist(a, b, scorer=scorer, workers=-1, dtype=np.float32, **kw) / (
+        1.0 if scorer is JaroWinkler.normalized_similarity else 100.0
+    )
 
 
-def extract_pair_features(s1_row, cand_row) -> List[float]:
-    """Computes base pairwise similarity features for a single (S1, Candidate) pair."""
-    n1 = s1_row.norm_name
-    n2 = cand_row.norm_name
-
-    name_lev = fuzz.ratio(n1, n2) / 100.0
-    name_sort = fuzz.token_sort_ratio(n1, n2) / 100.0
-    name_set = fuzz.token_set_ratio(n1, n2) / 100.0
-    name_jw = distance.JaroWinkler.similarity(n1, n2)
-    name_exact = 1.0 if (n1 and n1 == n2) else 0.0
-    max_name_len = max(len(n1), len(n2), 1)
-    name_len_diff = abs(len(n1) - len(n2)) / max_name_len
-    name_prefix = 1.0 if (len(n1) >= 4 and len(n2) >= 4 and n1[:4] == n2[:4]) else 0.0
-
-    a1 = s1_row.norm_address
-    a2 = cand_row.norm_address
-
-    addr_set = fuzz.token_set_ratio(a1, a2) / 100.0
-    addr_sort = fuzz.token_sort_ratio(a1, a2) / 100.0
-    addr_lev = fuzz.ratio(a1, a2) / 100.0
-    addr_exact = 1.0 if (a1 and a1 == a2) else 0.0
-
-    nums1 = s1_row.numeric_tokens
-    nums2 = cand_row.numeric_tokens
-    num_intersection = len(nums1 & nums2)
-    num_union = len(nums1 | nums2)
-    num_jaccard = (num_intersection / num_union) if num_union > 0 else 0.0
-
-    country_eq = 1.0 if (s1_row.country and s1_row.country == cand_row.country) else 0.0
-    is_s2 = 1.0 if cand_row.entity_id.startswith("S2-") else 0.0
-
-    has_nl1 = getattr(s1_row, "has_non_latin", False)
-    has_nl2 = getattr(cand_row, "has_non_latin", False)
-    is_cross_script = 1.0 if (has_nl1 != has_nl2) else 0.0
-
-    ph1 = set(getattr(s1_row, "phonetic_tokens", []))
-    ph2 = set(getattr(cand_row, "phonetic_tokens", []))
-    ph_union = len(ph1 | ph2)
-    phonetic_jaccard = (len(ph1 & ph2) / ph_union) if ph_union > 0 else 0.0
-
-    # Structured slot states (+1 / 0 / -1)
-    pin1 = getattr(s1_row, "postal_code", "")
-    pin2 = getattr(cand_row, "postal_code", "")
-    postal_state = slot_ternary_state(pin1, pin2)
-
-    bldg1 = getattr(s1_row, "building_number", "")
-    bldg2 = getattr(cand_row, "building_number", "")
-    building_state = slot_ternary_state(bldg1, bldg2)
-
-    unit1 = getattr(s1_row, "unit_slot", "")
-    unit2 = getattr(cand_row, "unit_slot", "")
-    unit_state = slot_ternary_state(unit1, unit2)
-
-    # Street number and street name contradiction logic
-    st_num1 = getattr(s1_row, "primary_street_num", "")
-    st_num2 = getattr(cand_row, "primary_street_num", "")
-    street_num_state = slot_ternary_state(st_num1, st_num2)
-
-    st_name1 = getattr(s1_row, "street_name", "")
-    st_name2 = getattr(cand_row, "street_name", "")
-    if st_name1 and st_name2:
-        street_name_sim = fuzz.ratio(st_name1, st_name2) / 100.0
-    else:
-        street_name_sim = 0.0
-
-    # Explicit conflict on same street: street names match (>=0.80) but street numbers differ
-    street_num_conflict_same_street = 1.0 if (street_name_sim >= 0.80 and street_num_state == -1.0) else 0.0
-
-    # State / Region contradiction
-    reg1 = getattr(s1_row, "state_region", "")
-    reg2 = getattr(cand_row, "state_region", "")
-    state_region_state = slot_ternary_state(reg1, reg2)
-    geo_conflict = 1.0 if state_region_state == -1.0 else 0.0
-
-    return [
-        name_lev,
-        name_sort,
-        name_set,
-        name_jw,
-        name_exact,
-        name_len_diff,
-        name_prefix,
-        addr_set,
-        addr_sort,
-        addr_lev,
-        addr_exact,
-        float(num_intersection),
-        num_jaccard,
-        country_eq,
-        is_s2,
-        is_cross_script,
-        phonetic_jaccard,
-        postal_state,
-        building_state,
-        unit_state,
-        street_num_state,
-        street_name_sim,
-        street_num_conflict_same_street,
-        state_region_state,
-        geo_conflict,
-    ]
+def _ternary(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    both = (a != "") & (b != "")
+    return np.where(both, np.where(a == b, 1.0, -1.0), 0.0).astype(np.float32)
 
 
+def _first_token(s: pd.Series) -> np.ndarray:
+    return s.str.split(" ", n=1).str[0].fillna("").to_numpy()
 
-def build_feature_matrix(
-    df_s1: pd.DataFrame,
-    df_pool: pd.DataFrame,
-    candidates_dict: Dict[str, List[str]],
-    ground_truth: Optional[Dict[str, Set[str]]] = None,
-) -> Tuple[pd.DataFrame, np.ndarray, List[Tuple[str, str]]]:
-    """
-    Builds feature matrix X including base features and candidate-relative group context
-    (rank, margin from top candidate, and bucket size).
-    """
-    pool_lookup = {row.entity_id: row for row in df_pool.itertuples()}
-    s1_lookup = {row.entity_id: row for row in df_s1.itertuples()}
 
-    pair_keys: List[Tuple[str, str]] = []
-    base_feature_rows: List[List[float]] = []
-    labels: List[int] = []
+def build_features(s1: pd.DataFrame, pool: pd.DataFrame, cands: pd.DataFrame) -> pd.DataFrame:
+    """cands: s1_idx, pool_idx (row positions in s1 / pool) + RETRIEVAL_FEATURES."""
+    A = s1.iloc[cands["s1_idx"].to_numpy()].reset_index(drop=True)
+    B = pool.iloc[cands["pool_idx"].to_numpy()].reset_index(drop=True)
+    f = {}
 
-    has_gt = ground_truth is not None
+    n1, n2 = A["name_core"].tolist(), B["name_core"].tolist()
+    f["name_ratio"] = _cp(n1, n2, fuzz.ratio)
+    f["name_token_set"] = _cp(n1, n2, fuzz.token_set_ratio)
+    f["name_token_sort"] = _cp(n1, n2, fuzz.token_sort_ratio)
+    f["name_partial"] = _cp(n1, n2, fuzz.partial_ratio)
+    f["name_jaro_winkler"] = _cp(n1, n2, JaroWinkler.normalized_similarity)
+    f["name_exact"] = (A["name_core"].to_numpy() == B["name_core"].to_numpy()).astype(np.float32)
+    c1, c2 = A["name_compact"].tolist(), B["name_compact"].tolist()
+    f["name_compact_ratio"] = _cp(c1, c2, fuzz.ratio)
+    f["name_compact_partial"] = _cp(c1, c2, fuzz.partial_ratio)
+    alias = B["name_alias"].to_numpy()
+    alias_sim = _cp(n1, alias.tolist(), fuzz.token_set_ratio)
+    f["name_alias_best"] = np.where(alias != "", np.maximum(alias_sim, f["name_token_set"]), f["name_token_set"])
+    f["name_phonetic_set"] = _cp(A["name_phon"].tolist(), B["name_phon"].tolist(), fuzz.token_set_ratio)
+    f["name_legal_state"] = _ternary(A["legal"].to_numpy(), B["legal"].to_numpy())
+    f["name_len_s1"] = A["name_core"].str.count(" ").to_numpy(np.float32) + 1
+    f["name_len_cand"] = B["name_core"].str.count(" ").to_numpy(np.float32) + 1
+    f["name_first_token_eq"] = (_first_token(A["name_core"]) == _first_token(B["name_core"])).astype(np.float32)
 
-    # Step 1: Compute base features per S1 group
-    s1_to_pair_indices: Dict[str, List[int]] = defaultdict(list)
-    current_idx = 0
+    a1, a2 = A["addr_norm"].tolist(), B["addr_norm"].tolist()
+    f["addr_token_set"] = _cp(a1, a2, fuzz.token_set_ratio)
+    f["addr_ratio"] = _cp(a1, a2, fuzz.ratio)
+    f["addr_partial"] = _cp(a1, a2, fuzz.partial_ratio)
+    f["addr_cand_empty"] = (B["addr_norm"].to_numpy() == "").astype(np.float32)
+    f["addr_s1_empty"] = (A["addr_norm"].to_numpy() == "").astype(np.float32)
+    f["addr_state_state"] = _ternary(A["state"].to_numpy(), B["state"].to_numpy())
+    f["addr_house_state"] = _ternary(A["house_num"].to_numpy(), B["house_num"].to_numpy())
+    f["addr_nums_set"] = _cp(A["addr_nums"].tolist(), B["addr_nums"].tolist(), fuzz.token_set_ratio)
 
-    for s1_id, cand_ids in candidates_dict.items():
-        if s1_id not in s1_lookup:
-            continue
-        s1_row = s1_lookup[s1_id]
-        true_set = ground_truth.get(s1_id, set()) if has_gt else set()
+    f["cand_is_s2"] = B["entity_id"].str.startswith("S2-").to_numpy(np.float32)
+    f["cand_has_indic"] = B["has_indic"].to_numpy(np.float32)
+    for col in RETRIEVAL_FEATURES:
+        f[col] = cands[col].to_numpy(np.float32)
 
-        for cand_id in cand_ids:
-            if cand_id not in pool_lookup:
-                continue
-            cand_row = pool_lookup[cand_id]
-
-            feat = extract_pair_features(s1_row, cand_row)
-            base_feature_rows.append(feat)
-            pair_keys.append((s1_id, cand_id))
-            s1_to_pair_indices[s1_id].append(current_idx)
-            current_idx += 1
-
-            if has_gt:
-                labels.append(1 if cand_id in true_set else 0)
-
-    # Step 2: Compute Group-Relative Features (Margin from Max, Rank, Bucket Size)
-    # Primary similarity index in base features: 0 (name_levenshtein)
-    final_feature_rows: List[List[float]] = []
-    for s1_id, indices in s1_to_pair_indices.items():
-        bucket_size = len(indices)
-        if bucket_size == 0:
-            continue
-
-        sims = [base_feature_rows[i][0] for i in indices]
-        max_sim = max(sims)
-        # Rank descending (0 = highest similarity)
-        sorted_indices = np.argsort(-np.array(sims))
-        ranks = {indices[sorted_indices[r]]: float(r) for r in range(bucket_size)}
-
-        for i in indices:
-            base_f = base_feature_rows[i]
-            sim = base_f[0]
-            margin = sim - max_sim
-            rank = ranks[i]
-            final_feature_rows.append(base_f + [rank, margin, float(bucket_size)])
-
-    X = pd.DataFrame(final_feature_rows, columns=FEATURE_NAMES)
-    y = np.array(labels, dtype=np.int32) if has_gt else np.array([])
-
-    return X, y, pair_keys
+    X = pd.DataFrame(f)
+    g = cands["s1_idx"].to_numpy()
+    grp = X.assign(_g=g).groupby("_g")
+    X["grp_size"] = grp["ret_cos"].transform("size").to_numpy(np.float32)
+    X["grp_rank_cos"] = grp["ret_cos"].rank(ascending=False, method="min").to_numpy(np.float32)
+    X["grp_margin_cos"] = (X["ret_cos"] - grp["ret_cos"].transform("max")).to_numpy(np.float32)
+    X["grp_rank_name"] = grp["name_token_set"].rank(ascending=False, method="min").to_numpy(np.float32)
+    X["grp_margin_name"] = (X["name_token_set"] - grp["name_token_set"].transform("max")).to_numpy(np.float32)
+    return X[FEATURE_NAMES]
