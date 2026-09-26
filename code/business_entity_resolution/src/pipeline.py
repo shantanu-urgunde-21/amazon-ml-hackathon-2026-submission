@@ -231,11 +231,12 @@ def _predict_in_chunks(models, s1, pool, cands, chunk_entities=150_000):
     return prob
 
 
-def train():
+def train(sample_entities: int = None):
     owner, _ = load_truth()
     fit_all = np.array(get_split()["fit"])
     rng = np.random.default_rng(config.RANDOM_SEED)
-    fit_ids = set(fit_all[rng.choice(len(fit_all), min(config.TRAIN_ENTITIES, len(fit_all)), replace=False)])
+    n_fit = min(sample_entities or config.TRAIN_ENTITIES, len(fit_all))
+    fit_ids = set(fit_all[rng.choice(len(fit_all), n_fit, replace=False)])
     Xs, ys, groups, keys = [], [], [], []
     for country in countries("train"):
         cands = candidates("train", country)
@@ -268,10 +269,13 @@ def _load_models():
         return pickle.load(f)["models"]
 
 
-def _score_country(split, country, models):
+def _score_country(split, country, models, subset_s1_ids: set = None):
     """(s1, pool, cands, prob) for one country; prob after exclusive assignment."""
     cands = candidates(split, country)
     s1, pool = load_split(split, country, FEATURE_COLUMNS)
+    if subset_s1_ids is not None:
+        mask = s1["entity_id"].isin(subset_s1_ids).to_numpy()[cands["s1_idx"]]
+        cands = cands[mask].reset_index(drop=True)
     prob = _predict_in_chunks(models, s1, pool, cands)
     if split == "train" and OOF_PATH.exists():  # no in-sample predictions (see train())
         oof = pd.read_parquet(OOF_PATH, filters=[("country", "==", country)])
@@ -284,19 +288,23 @@ def _score_country(split, country, models):
     return s1, pool, cands, prob
 
 
-def evaluate():
+def evaluate(sample_entities: int = None):
     """Gate tuned on one half of the holdout, benchmark reported on the other."""
     models = _load_models()
     owner, n_links = load_truth()
     holdout = np.array(get_split()["holdout"])
+    if sample_entities is not None and len(holdout) > sample_entities:
+        rng_holdout = np.random.default_rng(config.RANDOM_SEED + 99)
+        holdout = holdout[rng_holdout.choice(len(holdout), sample_entities, replace=False)]
     tune_mask = np.random.default_rng(config.RANDOM_SEED + 1).random(len(holdout)) < 0.5
     halves = {"tune": set(holdout[tune_mask]), "report": set(holdout[~tune_mask])}
 
     # per holdout entity: its pairs (prob, label) and number of true links
     rows = {h: {"ent": [], "pair_ent": [], "pair_cand": [], "prob": [], "label": [], "country": []} for h in halves}
     blocking = {"captured": 0, "total": 0, "pairs": 0, "entities": 0}
+    subset_ids = set(holdout) if sample_entities is not None else None
     for country in countries("train"):
-        s1, pool, cands, prob = _score_country("train", country, models)
+        s1, pool, cands, prob = _score_country("train", country, models, subset_s1_ids=subset_ids)
         s1_ids, cand_ids = _pair_ids(cands, s1, pool)
         for h, ids in halves.items():
             ents = [e for e in s1["entity_id"] if e in ids]
@@ -324,32 +332,47 @@ def evaluate():
         return (pos.index.get_indexer(pe[keep]), np.concatenate(r["prob"])[keep],
                 np.concatenate(r["label"])[keep], n_links.reindex(ents).to_numpy())
 
-    thresholds, tune_score = optimize_decision_thresholds(*arrays("tune"), log=log)
-    g, p, lab, nt = arrays("report")
-    report_score = macro_fbeta_pairs(g, select_pairs(g, p, **thresholds), lab, nt)
+    global_thresholds, tune_score = optimize_decision_thresholds(*arrays("tune"), log=log)
+    country_thresholds = {"default": global_thresholds}
+    for c in sorted(set(rows["tune"]["country"])):
+        t_c, _ = optimize_decision_thresholds(*arrays("tune", c), log=lambda m: log(f"  [{c}] {m}"))
+        country_thresholds[c] = t_c
+
     by_country = {}
     for c in sorted(set(rows["report"]["country"])):
         g, p, lab, nt = arrays("report", c)
-        by_country[c] = round(macro_fbeta_pairs(g, select_pairs(g, p, **thresholds), lab, nt), 4)
+        t_c = country_thresholds.get(c, global_thresholds)
+        by_country[c] = round(macro_fbeta_pairs(g, select_pairs(g, p, **t_c), lab, nt), 4)
+
+    # overall report score using country-specific thresholds
+    g, p, lab, nt = arrays("report")
+    report_score = float(np.mean(list(by_country.values())))
     report = {
         "holdout_report_entities": blocking["entities"],
         "macro_f05_report_half": round(report_score, 4),
         "macro_f05_tune_half": round(tune_score, 4),
         "macro_f05_by_country": by_country,
-        "thresholds": thresholds,
+        "thresholds": country_thresholds,
         "blocking_recall": round(blocking["captured"] / max(1, blocking["total"]), 4),
         "avg_candidates_per_s1": round(blocking["pairs"] / max(1, blocking["entities"]), 2),
     }
-    GATE_PATH.write_text(json.dumps(thresholds), encoding="utf-8")
+    GATE_PATH.write_text(json.dumps(country_thresholds), encoding="utf-8")
     REPORT_PATH.write_text(json.dumps(report, indent=2), encoding="utf-8")
     # report-half pairs with decisions, for error analysis
     r = rows["report"]
     pe = np.concatenate(r["pair_ent"])
-    g_all = pd.Index(r["ent"]).get_indexer(pe)
     p_all = np.concatenate(r["prob"])
+    c_all = np.concatenate([[c] * len(pe_c) for c, pe_c in zip(r["country"], r["pair_ent"])]) if len(r["pair_ent"]) else np.array([])
+    # per-country selected mask
+    sel_parts = []
+    for c, pe_c, pr_c in zip(r["country"], r["pair_ent"], r["prob"]):
+        t_c = country_thresholds.get(c, global_thresholds)
+        g_c = pd.Index(r["ent"]).get_indexer(pe_c)
+        sel_parts.append(select_pairs(g_c, pr_c, **t_c))
+    sel_all = np.concatenate(sel_parts) if len(sel_parts) else np.zeros(0, bool)
     pd.DataFrame({
         "source1_entity_id": pe, "entity_id": np.concatenate(r["pair_cand"]), "prob": p_all,
-        "label": np.concatenate(r["label"]), "selected": select_pairs(g_all, p_all, **thresholds),
+        "label": np.concatenate(r["label"]), "selected": sel_all,
     }).to_parquet(CACHE / "holdout_report_pairs.parquet", index=False)
     log(f"BENCHMARK (untouched holdout half): {json.dumps(report)}")
     return report
@@ -381,7 +404,8 @@ def predict_test():
     for country in countries("test"):
         s1, pool, cands, prob = _score_country("test", country, models)
         s1_ids, cand_ids = _pair_ids(cands, s1, pool)
-        sel = select_pairs(cands["s1_idx"].to_numpy(), prob, **thresholds) if len(cands) else np.zeros(0, bool)
+        t_c = thresholds.get(country, thresholds.get("default", thresholds))
+        sel = select_pairs(cands["s1_idx"].to_numpy(), prob, **t_c) if len(cands) else np.zeros(0, bool)
         cand_map.update(pd.Series(cand_ids).groupby(s1_ids).agg(list).to_dict())
         match_map.update(pd.Series(cand_ids[sel]).groupby(s1_ids[sel]).agg(list).to_dict())
         n_pairs, n_sel = n_pairs + len(cands), n_sel + int(sel.sum())

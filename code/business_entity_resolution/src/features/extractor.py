@@ -27,8 +27,9 @@ FEATURE_NAMES = [
     "name_ratio", "name_token_set", "name_token_sort", "name_partial", "name_jaro_winkler",
     "name_exact", "name_compact_ratio", "name_compact_partial", "name_alias_best",
     "name_phonetic_set", "name_legal_state", "name_len_s1", "name_len_cand", "name_first_token_eq",
-    "addr_token_set", "addr_ratio", "addr_partial", "addr_cand_empty", "addr_s1_empty",
-    "addr_state_state", "addr_house_state", "addr_nums_set",
+    "name_ocr_ratio", "name_ratio_no_addr",
+    "addr_token_set", "addr_ratio", "addr_partial", "addr_cand_empty", "addr_s1_empty", "addr_both_present",
+    "addr_state_state", "addr_house_state", "addr_nums_set", "addr_nums_overlap",
     "cand_is_s2", "cand_has_indic",
     *RETRIEVAL_FEATURES,
     "grp_size", "grp_rank_cos", "grp_margin_cos", "grp_rank_name", "grp_margin_name",
@@ -74,16 +75,32 @@ def build_features(s1: pd.DataFrame, pool: pd.DataFrame, cands: pd.DataFrame) ->
     f["name_len_s1"] = A["name_core"].str.count(" ").to_numpy(np.float32) + 1
     f["name_len_cand"] = B["name_core"].str.count(" ").to_numpy(np.float32) + 1
     f["name_first_token_eq"] = (_first_token(A["name_core"]) == _first_token(B["name_core"])).astype(np.float32)
+    tr_ocr = str.maketrans({"1": "l", "0": "o", "v": "u"})
+    n1_ocr = [t.translate(tr_ocr).replace("rn", "m") for t in n1]
+    n2_ocr = [t.translate(tr_ocr).replace("rn", "m") for t in n2]
+    f["name_ocr_ratio"] = _cp(n1_ocr, n2_ocr, fuzz.ratio)
 
     a1, a2 = A["addr_norm"].tolist(), B["addr_norm"].tolist()
+    f["addr_cand_empty"] = (B["addr_norm"].to_numpy() == "").astype(np.float32)
+    f["addr_s1_empty"] = (A["addr_norm"].to_numpy() == "").astype(np.float32)
+    f["addr_both_present"] = ((f["addr_cand_empty"] == 0) & (f["addr_s1_empty"] == 0)).astype(np.float32)
+    f["name_ratio_no_addr"] = np.where((f["addr_cand_empty"] == 1) | (f["addr_s1_empty"] == 1), f["name_ratio"], 0.0).astype(np.float32)
     f["addr_token_set"] = _cp(a1, a2, fuzz.token_set_ratio)
     f["addr_ratio"] = _cp(a1, a2, fuzz.ratio)
     f["addr_partial"] = _cp(a1, a2, fuzz.partial_ratio)
-    f["addr_cand_empty"] = (B["addr_norm"].to_numpy() == "").astype(np.float32)
-    f["addr_s1_empty"] = (A["addr_norm"].to_numpy() == "").astype(np.float32)
     f["addr_state_state"] = _ternary(A["state"].to_numpy(), B["state"].to_numpy())
     f["addr_house_state"] = _ternary(A["house_num"].to_numpy(), B["house_num"].to_numpy())
     f["addr_nums_set"] = _cp(A["addr_nums"].tolist(), B["addr_nums"].tolist(), fuzz.token_set_ratio)
+
+    nums1_list = A["addr_nums"].tolist()
+    nums2_list = B["addr_nums"].tolist()
+    nums_overlap = np.zeros(len(nums1_list), dtype=np.float32)
+    for i, (x, y) in enumerate(zip(nums1_list, nums2_list)):
+        if x and y:
+            sx = set(x.split())
+            sy = set(y.split())
+            nums_overlap[i] = 1.0 if (sx & sy) else -1.0
+    f["addr_nums_overlap"] = nums_overlap
 
     f["cand_is_s2"] = B["entity_id"].str.startswith("S2-").to_numpy(np.float32)
     f["cand_has_indic"] = B["has_indic"].to_numpy(np.float32)

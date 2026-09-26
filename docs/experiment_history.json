@@ -247,7 +247,7 @@
           "s1_name": "Great Impex Private Limited",
           "s1_addr": "6-2-101/5/C, Telangana, Hyderabad, Secunderabad, Lane Beside Centralview Apt New Bhoiguda",
           "true_id": "S3-118565228",
-          "true_name": "\u0c17\u0c4d\u0c30\u0c47\u0c1f\u0c4d \u0c07\u0c02\u0c2a\u0c46\u0c15\u0c4d\u0c38\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "true_name": "గ్రేట్ ఇంపెక్స్ ప్రైవేట్ లిమిటెడ్",
           "true_addr": "6-2-101/5/C, Lane Beside Centralview Apt New Bhoiguda, Secunderabad, Hyderabad, TG",
           "reason": "Never retrieved in candidate blocking"
         }
@@ -299,7 +299,7 @@
           "s1_addr": "Plot No 01, Sect-06 Rajani, Khand, Sharda Nagar, Lucknow, Uttar Pradesh",
           "true_id": "S3-987734207",
           "true_name": "Divine Educational Service (ID: 25610)",
-          "true_addr": "01, NULL, Lucknow, \u0909\u0924\u094d\u0924\u0930 \u092a\u094d\u0930\u0926\u0947\u0936",
+          "true_addr": "01, NULL, Lucknow, उत्तर प्रदेश",
           "prob": 0.08862552046775818,
           "reason": "Scored P=0.089 below threshold"
         }
@@ -337,7 +337,7 @@
           "s1_name": "Congregation Church",
           "s1_addr": "929 Ridge Road, Lewiston, NY",
           "cand_id": "S3-673223808",
-          "cand_name": "Congregation B\u00e1ptist Church Co",
+          "cand_name": "Congregation Báptist Church Co",
           "cand_addr": "",
           "prob": 0.8969845771789551
         },
@@ -375,7 +375,7 @@
           "s1_name": "Suryaksh Buildtech Private Limited",
           "s1_addr": "16-11-51, Moosarambagh Malakpet, Hyderabad, Telangana",
           "cand_id": "S2-985441801",
-          "cand_name": "\u0c35\u0c48\u0c1f\u0c4d \u0c38\u0c3e\u0c2b\u0c4d\u0c1f\u0c4d\u200c\u0c35\u0c47\u0c30\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "cand_name": "వైట్ సాఫ్ట్‌వేర్ ప్రైవేట్ లిమిటెడ్",
           "cand_addr": "16-11-781/39, MOOSARAMBAGH, AMBERPET, HYDERABAD, Telangana",
           "prob": 0.681175708770752
         },
@@ -518,8 +518,8 @@
           "s1_name": "Great Impex Private Limited",
           "s1_addr": "6-2-101/5/C, Telangana, Hyderabad, Secunderabad, Lane Beside Centralview Apt New Bhoiguda",
           "true_id": "S2-199917158",
-          "true_name": "\u0c17\u0c4d\u0c30\u0c47\u0c1f\u0c4d \u0c07\u0c02\u0c2a\u0c46\u0c15\u0c4d\u0c38\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
-          "true_addr": "6-2-101/5/C, HYDERABAD, SECUNDERABAD, \u0c24\u0c46\u0c32\u0c02\u0c17\u0c3e\u0c23",
+          "true_name": "గ్రేట్ ఇంపెక్స్ ప్రైవేట్ లిమిటెడ్",
+          "true_addr": "6-2-101/5/C, HYDERABAD, SECUNDERABAD, తెలంగాణ",
           "reason": "Never retrieved in candidate blocking"
         }
       ],
@@ -560,7 +560,7 @@
           "s1_addr": "Plot No 01, Sect-06 Rajani, Khand, Sharda Nagar, Lucknow, Uttar Pradesh",
           "true_id": "S3-987734207",
           "true_name": "Divine Educational Service (ID: 25610)",
-          "true_addr": "01, NULL, Lucknow, \u0909\u0924\u094d\u0924\u0930 \u092a\u094d\u0930\u0926\u0947\u0936",
+          "true_addr": "01, NULL, Lucknow, उत्तर प्रदेश",
           "prob": 0.43739259243011475,
           "reason": "Scored P=0.437 below threshold"
         },
@@ -599,7 +599,7 @@
           "s1_name": "India Balakrishna Com Private Limited",
           "s1_addr": "South Kalyanpur Pops. Baruipur, Kolkata, Howrah, West Bengal",
           "cand_id": "S3-880695057",
-          "cand_name": "Private Sai (India) (india) L\u00edmited",
+          "cand_name": "Private Sai (India) (india) Límited",
           "cand_addr": "9-12, Kolkata, Howrah, WB",
           "prob": 0.8056786060333252
         },
@@ -617,7 +617,7 @@
           "s1_name": "Big Auto Body",
           "s1_addr": "201 High Ridge Trail, Rio Rancho, NM",
           "cand_id": "S2-926656275",
-          "cand_name": "BIG \u00c1UTO \u00c1UTO B\u00d3DY",
+          "cand_name": "BIG ÁUTO ÁUTO BÓDY",
           "cand_addr": "",
           "prob": 0.8896957635879517
         }
@@ -789,8 +789,8 @@
           "s1_name": "Great Impex Private Limited",
           "s1_addr": "6-2-101/5/C, Telangana, Hyderabad, Secunderabad, Lane Beside Centralview Apt New Bhoiguda",
           "true_id": "S2-199917158",
-          "true_name": "\u0c17\u0c4d\u0c30\u0c47\u0c1f\u0c4d \u0c07\u0c02\u0c2a\u0c46\u0c15\u0c4d\u0c38\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
-          "true_addr": "6-2-101/5/C, HYDERABAD, SECUNDERABAD, \u0c24\u0c46\u0c32\u0c02\u0c17\u0c3e\u0c23",
+          "true_name": "గ్రేట్ ఇంపెక్స్ ప్రైవేట్ లిమిటెడ్",
+          "true_addr": "6-2-101/5/C, HYDERABAD, SECUNDERABAD, తెలంగాణ",
           "reason": "Never retrieved in candidate blocking"
         }
       ],
@@ -852,7 +852,7 @@
           "s1_name": "Big Auto Body",
           "s1_addr": "201 High Ridge Trail, Rio Rancho, NM",
           "cand_id": "S2-926656275",
-          "cand_name": "BIG \u00c1UTO \u00c1UTO B\u00d3DY",
+          "cand_name": "BIG ÁUTO ÁUTO BÓDY",
           "cand_addr": "",
           "prob": 0.8741953372955322
         },
@@ -879,7 +879,7 @@
           "s1_name": "Ramirez and Pearson Inc",
           "s1_addr": "210 Davis Avenue, Detroit Lakes, MN",
           "cand_id": "S2-853563408",
-          "cand_name": "and Ramirez \u00cdnc Pearson Northside",
+          "cand_name": "and Ramirez Ínc Pearson Northside",
           "cand_addr": "PO BOX 4276, 217 DAVIS AVENUE, DETROIT LAKES, MN",
           "prob": 0.9884882569313049
         },
@@ -899,7 +899,7 @@
           "s1_name": "Suryaksh Buildtech Private Limited",
           "s1_addr": "16-11-51, Moosarambagh Malakpet, Hyderabad, Telangana",
           "cand_id": "S2-985441801",
-          "cand_name": "\u0c35\u0c48\u0c1f\u0c4d \u0c38\u0c3e\u0c2b\u0c4d\u0c1f\u0c4d\u200c\u0c35\u0c47\u0c30\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "cand_name": "వైట్ సాఫ్ట్‌వేర్ ప్రైవేట్ లిమిటెడ్",
           "cand_addr": "16-11-781/39, MOOSARAMBAGH, AMBERPET, HYDERABAD, Telangana",
           "prob": 0.8139222860336304
         },
@@ -1060,7 +1060,7 @@
           "s1_name": "Great Impex Private Limited",
           "s1_addr": "6-2-101/5/C, Telangana, Hyderabad, Secunderabad, Lane Beside Centralview Apt New Bhoiguda",
           "true_id": "S3-118565228",
-          "true_name": "\u0c17\u0c4d\u0c30\u0c47\u0c1f\u0c4d \u0c07\u0c02\u0c2a\u0c46\u0c15\u0c4d\u0c38\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "true_name": "గ్రేట్ ఇంపెక్స్ ప్రైవేట్ లిమిటెడ్",
           "true_addr": "6-2-101/5/C, Lane Beside Centralview Apt New Bhoiguda, Secunderabad, Hyderabad, TG",
           "reason": "Never retrieved in candidate blocking"
         }
@@ -1102,7 +1102,7 @@
           "s1_addr": "Plot No 01, Sect-06 Rajani, Khand, Sharda Nagar, Lucknow, Uttar Pradesh",
           "true_id": "S3-987734207",
           "true_name": "Divine Educational Service (ID: 25610)",
-          "true_addr": "01, NULL, Lucknow, \u0909\u0924\u094d\u0924\u0930 \u092a\u094d\u0930\u0926\u0947\u0936",
+          "true_addr": "01, NULL, Lucknow, उत्तर प्रदेश",
           "prob": 0.21587024629116058,
           "reason": "Scored P=0.216 below threshold"
         },
@@ -1150,7 +1150,7 @@
           "s1_name": "Big Auto Body",
           "s1_addr": "201 High Ridge Trail, Rio Rancho, NM",
           "cand_id": "S2-926656275",
-          "cand_name": "BIG \u00c1UTO \u00c1UTO B\u00d3DY",
+          "cand_name": "BIG ÁUTO ÁUTO BÓDY",
           "cand_addr": "",
           "prob": 0.9058738350868225
         },
@@ -1188,7 +1188,7 @@
           "s1_name": "Suryaksh Buildtech Private Limited",
           "s1_addr": "16-11-51, Moosarambagh Malakpet, Hyderabad, Telangana",
           "cand_id": "S2-985441801",
-          "cand_name": "\u0c35\u0c48\u0c1f\u0c4d \u0c38\u0c3e\u0c2b\u0c4d\u0c1f\u0c4d\u200c\u0c35\u0c47\u0c30\u0c4d \u0c2a\u0c4d\u0c30\u0c48\u0c35\u0c47\u0c1f\u0c4d \u0c32\u0c3f\u0c2e\u0c3f\u0c1f\u0c46\u0c21\u0c4d",
+          "cand_name": "వైట్ సాఫ్ట్‌వేర్ ప్రైవేట్ లిమిటెడ్",
           "cand_addr": "16-11-781/39, MOOSARAMBAGH, AMBERPET, HYDERABAD, Telangana",
           "prob": 0.839565634727478
         },
@@ -1294,6 +1294,107 @@
       {
         "feature": "cand_rank_name_sim",
         "gain": 4161.121402446751
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-09-26 15:30:00",
+    "tag": "FAISS-SVD-Vector-XGBoost-GPU",
+    "description": "Full 2.2M dataset: 128d SVD FAISS retrieval (8.35 cands/S1), GPU XGBoost on 300k entities, 221k holdout benchmark baseline",
+    "s1_entities": 221025,
+    "feature_count": 22,
+    "blocking_recall": 0.9445,
+    "avg_candidates_per_s1": 8.35,
+    "macro_f05": 0.9482,
+    "country_scores": {
+      "India": 0.935,
+      "US": 0.9614
+    },
+    "optimal_thresholds": {
+      "tau_singleton": 0.6,
+      "tau_match": 0.55,
+      "delta_prob": 0.15
+    },
+    "timing_seconds": {
+      "model_training": 480.0,
+      "evaluation": 630.0
+    }
+  },
+  {
+    "timestamp": "2026-09-26 17:20:45",
+    "tag": "Fix-1-OCR-Overlap-CountryGates",
+    "description": "Fix 1: Added OCR ratio, unobserved address feature, addr_nums_overlap (#8 top feature), and country-specific gating on 221k holdout entities",
+    "s1_entities": 221025,
+    "feature_count": 26,
+    "blocking_recall": 0.9445,
+    "avg_candidates_per_s1": 8.35,
+    "macro_f05": 0.9525,
+    "macro_f05_tune_half": 0.9547,
+    "country_scores": {
+      "India": 0.9426,
+      "US": 0.9623
+    },
+    "optimal_thresholds": {
+      "default": {
+        "tau_singleton": 0.65,
+        "tau_match": 0.05,
+        "delta_prob": 0.3
+      },
+      "India": {
+        "tau_singleton": 0.6,
+        "tau_match": 0.4,
+        "delta_prob": 0.3
+      },
+      "US": {
+        "tau_singleton": 0.65,
+        "tau_match": 0.05,
+        "delta_prob": 0.3
+      }
+    },
+    "timing_seconds": {
+      "model_training": 522.0,
+      "evaluation": 1488.0
+    },
+    "top_features": [
+      {
+        "feature": "addr_nums_set",
+        "gain": 9869667
+      },
+      {
+        "feature": "addr_token_set",
+        "gain": 3472497
+      },
+      {
+        "feature": "addr_house_state",
+        "gain": 1640440
+      },
+      {
+        "feature": "ret_rev_margin",
+        "gain": 1562227
+      },
+      {
+        "feature": "ret_rev_rank",
+        "gain": 559923
+      },
+      {
+        "feature": "name_legal_state",
+        "gain": 485292
+      },
+      {
+        "feature": "ret_cos_name",
+        "gain": 406806
+      },
+      {
+        "feature": "addr_nums_overlap",
+        "gain": 405307
+      },
+      {
+        "feature": "name_partial",
+        "gain": 387480
+      },
+      {
+        "feature": "name_len_cand",
+        "gain": 313305
       }
     ]
   }

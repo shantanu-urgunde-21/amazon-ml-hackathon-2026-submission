@@ -35,12 +35,21 @@ STAGES = {
 def main():
     parser = argparse.ArgumentParser(description="Run the Business Entity Resolution pipeline")
     parser.add_argument("--stage", choices=["all", *STAGES], default="all")
+    parser.add_argument("--sample", type=int, default=None, help="Sample N entities for rapid iteration")
     args = parser.parse_args()
 
+    stages = {
+        "prepare": pipeline.prepare,
+        "candidates": lambda: (pipeline.all_candidates("train"), pipeline.all_candidates("test")),
+        "train": lambda: pipeline.train(sample_entities=args.sample),
+        "evaluate": lambda: pipeline.evaluate(sample_entities=args.sample),
+        "predict": pipeline.predict_test,
+    }
+
     start = time.time()
-    for name, fn in STAGES.items():
+    for name, fn in stages.items():
         if args.stage in ("all", name):
-            pipeline.log(f"=== stage: {name} ===")
+            pipeline.log(f"=== stage: {name}{f' (sample {args.sample:,})' if args.sample else ''} ===")
             fn()
     pipeline.log(f"done in {(time.time() - start) / 60:.1f} min")
 

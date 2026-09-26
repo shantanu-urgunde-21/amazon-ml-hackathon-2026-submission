@@ -21,6 +21,8 @@
 | `05` | **Phase-3-Precision-Defense** | 28 | 86.50% | **0.8980** (-0.0445) | 0.8623 | 98.1% | 0.8977 | 0.8982 | 48.76s | Phase 3: Contradiction Hard Penalty Gating + Compound Blocking + URL Cleaner |
 | `06` | **Phase-3-Clean-Contradictions** | 28 | 86.48% | **0.9421** (+0.0441) | 0.9255 | 98.1% | 0.9097 | 0.9629 | 44.48s | Phase 3: Clean State & Street Contradictions + Compound Blocking + Domain Cleaner |
 | `07` | **Phase-3-10k-Random-Sample** | 28 | 87.15% | **0.9369** | 0.9347 | 97.2% | 0.8965 | 0.9636 | 92.46s | Phase 3: 10000 S1 Random Evaluation with Full Pool Ground Truth Alignment |
+| `08` | **FAISS-SVD-Vector-XGBoost-GPU** | 22 | **94.45%** | **0.9482** | — | — | **0.9350** | **0.9614** | 8.0 min (train) | Full 2.2M dataset: 128d SVD FAISS retrieval (8.35 cands/S1), GPU XGBoost on 300k entities, 221k holdout benchmark |
+| `09` | **Fix-1-OCR-Overlap-CountryGates** | 26 | **94.45%** | **0.9525** (+0.0043) | — | — | **0.9426** | **0.9623** | 8.7 min (train) | Full 221k holdout benchmark: Added OCR ratio, unobserved address feature, addr_nums_overlap (#8 top feature), and country-specific gating (India 0.9426, US 0.9623). |
 
 ---
 
