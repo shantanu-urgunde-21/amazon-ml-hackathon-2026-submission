@@ -131,9 +131,6 @@ CODE_PATTERN = re.compile(r",\s*([a-zA-Z]{2})(?:\s*,|\s+\d{5,6}|\s*$)", re.IGNOR
 STOP_WORDS_2 = {"in", "or", "me", "as", "so", "to", "at", "by", "of", "no", "is", "am", "it", "on", "he"}
 
 
-
-
-
 def has_non_latin_script(text: str) -> bool:
     """Detects whether text contains Indic or other non-Latin scripts."""
     if not text:
