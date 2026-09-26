@@ -145,7 +145,7 @@ def normalized_paths(path: Path, lexicon: dict, cache_dir: Path) -> Dict[str, Pa
     if not marker.exists():
         return {}
     return {c: marker.with_name(f"{Path(path).stem}.{lexicon_fingerprint(lexicon)}.{c}.parquet")
-            for c in json.loads(marker.read_text())}
+            for c in json.loads(marker.read_text(encoding="utf-8"))}
 
 
 def build_normalized(path: Path, lexicon: dict, cache_dir: Path, chunk_rows: int = 1_000_000) -> Dict[str, Path]:
@@ -165,5 +165,6 @@ def build_normalized(path: Path, lexicon: dict, cache_dir: Path, chunk_rows: int
     countries = sorted(df["country"].unique())
     for c in countries:
         df[df["country"] == c].reset_index(drop=True).to_parquet(cache_dir / f"{stem}.{c}.parquet", index=False)
-    (cache_dir / f"{stem}.countries.json").write_text(json.dumps(countries))
+    (cache_dir / f"{stem}.countries.json").write_text(json.dumps(countries), encoding="utf-8")
     return normalized_paths(path, lexicon, cache_dir)
+

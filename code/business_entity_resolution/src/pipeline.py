@@ -73,12 +73,13 @@ def retrieval_params() -> dict:
 def get_split():
     """Train S1 entities split into fit / holdout (deterministic, cached)."""
     if SPLIT_PATH.exists():
-        return json.loads(SPLIT_PATH.read_text())
+        return json.loads(SPLIT_PATH.read_text(encoding="utf-8"))
     gt = load_ground_truth(config.TRAIN_GROUND_TRUTH_PATH)
     fit, holdout = split_s1_ids(list(gt), config.HOLDOUT_FRAC, config.RANDOM_SEED)
     SPLIT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SPLIT_PATH.write_text(json.dumps({"fit": fit, "holdout": holdout}))
+    SPLIT_PATH.write_text(json.dumps({"fit": fit, "holdout": holdout}), encoding="utf-8")
     return {"fit": fit, "holdout": holdout}
+
 
 
 def get_lexicon():
@@ -339,8 +340,8 @@ def evaluate():
         "blocking_recall": round(blocking["captured"] / max(1, blocking["total"]), 4),
         "avg_candidates_per_s1": round(blocking["pairs"] / max(1, blocking["entities"]), 2),
     }
-    GATE_PATH.write_text(json.dumps(thresholds))
-    REPORT_PATH.write_text(json.dumps(report, indent=2))
+    GATE_PATH.write_text(json.dumps(thresholds), encoding="utf-8")
+    REPORT_PATH.write_text(json.dumps(report, indent=2), encoding="utf-8")
     # report-half pairs with decisions, for error analysis
     r = rows["report"]
     pe = np.concatenate(r["pair_ent"])
@@ -375,7 +376,7 @@ def write_submission(s1_ids, cand_map, match_map):
 
 def predict_test():
     models = _load_models()
-    thresholds = json.loads(GATE_PATH.read_text())
+    thresholds = json.loads(GATE_PATH.read_text(encoding="utf-8"))
     cand_map, match_map, n_pairs, n_sel = {}, {}, 0, 0
     for country in countries("test"):
         s1, pool, cands, prob = _score_country("test", country, models)

@@ -104,8 +104,9 @@ def learn_lexicon(
 
 def save_lexicon(lexicon: dict, path: Path):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(json.dumps(lexicon, ensure_ascii=False, indent=0, sort_keys=True))
+    Path(path).write_text(json.dumps(lexicon, ensure_ascii=False, indent=0, sort_keys=True), encoding="utf-8")
 
 
 def load_lexicon(path: Path) -> dict:
-    return json.loads(Path(path).read_text()) if Path(path).exists() else {}
+    return json.loads(Path(path).read_text(encoding="utf-8")) if Path(path).exists() else {}
+
