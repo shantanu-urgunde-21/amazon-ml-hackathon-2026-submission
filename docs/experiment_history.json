@@ -1212,5 +1212,89 @@
         }
       ]
     }
+  },
+  {
+    "timestamp": "2026-09-26 11:26:46",
+    "tag": "Phase-3-10k-Random-Sample",
+    "description": "Phase 3: 10000 S1 Random Evaluation with Full Pool Ground Truth Alignment",
+    "s1_entities": 10000,
+    "pool_records": 94768,
+    "pair_count": 594320,
+    "feature_count": 28,
+    "blocking_recall": 0.8714622641509434,
+    "captured_links": 30299,
+    "total_true_links": 34768,
+    "avg_candidates_per_s1": 59.432,
+    "macro_f05": 0.9368553884193761,
+    "singleton_accuracy": 0.972027972027972,
+    "non_singleton_f05": 0.9347214556845311,
+    "macro_precision_non_sing": 0.9724629775541952,
+    "macro_recall_non_sing": 0.8563537099891575,
+    "total_singletons": 572,
+    "total_non_singletons": 9428,
+    "country_f05": {
+      "US": 0.9635747423406756,
+      "India": 0.8964575508779791
+    },
+    "failure_counts": {
+      "blocking_misses": 4469,
+      "scoring_misses": 543,
+      "false_merges": 159,
+      "singleton_false_merges": 16
+    },
+    "optimal_thresholds": {
+      "tau_singleton": 0.45,
+      "tau_match": 0.6,
+      "delta_prob": 0.2
+    },
+    "timing_seconds": {
+      "normalization": 8.96,
+      "blocking": 10.13,
+      "feature_extraction": 15.07,
+      "model_training": 30.39,
+      "total": 92.46
+    },
+    "top_features": [
+      {
+        "feature": "addr_token_set",
+        "gain": 734028.5308982283
+      },
+      {
+        "feature": "addr_token_sort",
+        "gain": 127684.21765368644
+      },
+      {
+        "feature": "addr_levenshtein",
+        "gain": 80309.50266509577
+      },
+      {
+        "feature": "name_jaro_winkler",
+        "gain": 33730.708217645406
+      },
+      {
+        "feature": "name_token_sort",
+        "gain": 22687.22288038172
+      },
+      {
+        "feature": "building_number_state",
+        "gain": 15808.070290227235
+      },
+      {
+        "feature": "phonetic_jaccard",
+        "gain": 11318.518502445519
+      },
+      {
+        "feature": "state_region_state",
+        "gain": 9728.14487446323
+      },
+      {
+        "feature": "name_token_set",
+        "gain": 7458.573760680166
+      },
+      {
+        "feature": "cand_rank_name_sim",
+        "gain": 4161.121402446751
+      }
+    ]
   }
 ]

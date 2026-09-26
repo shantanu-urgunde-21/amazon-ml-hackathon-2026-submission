@@ -1,6 +1,6 @@
 # Experiment & Benchmark Tracker
 **Amazon ML Challenge 2026 — Business Entity Resolution**  
-**Last Run:** 2026-09-25 22:50:53  
+**Last Run:** 2026-09-26 11:26:46  
 
 ---
 
@@ -14,6 +14,7 @@
 | `04` | **Phase-3-Contradictions** | 28 | 86.54% | **0.9426** (+0.0010) | 0.9259 | 98.1% | 0.9103 | 0.9633 | 47.24s | Phase 3: Street Number Contradiction, State Conflict, and Compound Blocking |
 | `05` | **Phase-3-Precision-Defense** | 28 | 86.50% | **0.8980** (-0.0445) | 0.8623 | 98.1% | 0.8977 | 0.8982 | 48.76s | Phase 3: Contradiction Hard Penalty Gating + Compound Blocking + URL Cleaner |
 | `06` | **Phase-3-Clean-Contradictions** | 28 | 86.48% | **0.9421** (+0.0441) | 0.9255 | 98.1% | 0.9097 | 0.9629 | 44.48s | Phase 3: Clean State & Street Contradictions + Compound Blocking + Domain Cleaner |
+| `07` | **Phase-3-10k-Random-Sample** | 28 | 87.15% | **0.9369** | 0.9347 | 97.2% | 0.8965 | 0.9636 | 92.46s | Phase 3: 10000 S1 Random Evaluation with Full Pool Ground Truth Alignment |
 
 ---
 

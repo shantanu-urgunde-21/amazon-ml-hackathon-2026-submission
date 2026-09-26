@@ -43,14 +43,24 @@ for _cand in _default_candidate_dataset_dirs:
 for _k, _v in _raw["datasetPaths"].items():
     _res = _resolve(_v)
     if not _res.exists() and _resolved_dataset_dir:
-        # Check if file/folder exists under detected dataset directory
-        _sub_p = _resolved_dataset_dir / Path(_v).name
-        if _sub_p.exists():
-            _res = _sub_p
-        elif "train" in _v and (_resolved_dataset_dir / "train").exists():
+        # Check specific dataset paths
+        _fname = Path(_v).name
+        if _k == "trainPath":
             _res = _resolved_dataset_dir / "train"
-        elif "test" in _v and (_resolved_dataset_dir / "test").exists():
+        elif _k == "testPath":
             _res = _resolved_dataset_dir / "test"
+        elif _k == "gtPath":
+            _res = _resolved_dataset_dir / "train" / "train_ground_truth.tsv"
+        elif _k == "validateScript":
+            _cand_script = _resolved_dataset_dir.parent / "utils" / "validate_submission.py"
+            if _cand_script.exists():
+                _res = _cand_script
+        elif (_resolved_dataset_dir / _fname).exists():
+            _res = _resolved_dataset_dir / _fname
+        elif (_resolved_dataset_dir / "train" / _fname).exists():
+            _res = _resolved_dataset_dir / "train" / _fname
+        elif (_resolved_dataset_dir / "test" / _fname).exists():
+            _res = _resolved_dataset_dir / "test" / _fname
     _raw["datasetPaths"][_k] = str(_res)
 
 _raw["outputPaths"]["outputDir"] = str(_resolve(_raw["outputPaths"]["outputDir"]))
