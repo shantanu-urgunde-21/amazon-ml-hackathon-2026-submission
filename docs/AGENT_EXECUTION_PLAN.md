@@ -1,72 +1,76 @@
 # Pipeline Architecture & Operational Playbook
+
 **Amazon ML Challenge 2026 — Business Entity Resolution**
 
 ---
 
 ## 1. Engineering Guardrails
-1. **No Un-indexed Quadratic Loops:** Training & test data exceed 2.5 GB (~1.7M test entities). Candidate generation must pass through indexed blocking.
-2. **Format Strictness:** Always use `sep="\t"` with header matching official submission requirements.
-3. **Competition Rules:** Zero external APIs/lookups allowed (automatic disqualification).
-4. **Metric Integrity:** Macro-$F_{0.5}$ weights precision $2\times$ over recall. Singletons receive full 1.0 credit if left empty, and 0.0 upon any false merge.
+
+1. **No quadratic loops.** The train pool has 10.3M records and the test pool 10.0M. Candidates come from partitioned FAISS indexes; features are computed column-wise (`rapidfuzz.process.cpdist`).
+2. **GPU optional.** `useGpu = true` + `requirements-gpu.txt`: FAISS flat indexes and XGBoost run on CUDA; exact search, so results match the CPU run.
+3. **Memory budget ~8 GB.** Data is cached as one parquet file per (source, country). Candidate generation streams the pool in batches.
+4. **Format strictness.** TSV with `sep="\t"`; one row per S1 entity; matches ⊆ candidates.
+5. **Competition rules.** No external data or APIs. The only learned resources come from the training files.
+6. **Open country set.** Every stage loops over the country labels found in the data. France (test only) is handled by the same code path.
+7. **No leakage.** See section 4.
 
 ---
 
-## 2. Modular Architecture & Data Flow
+## 2. Data Flow
 
+```text
+raw TSVs (S1, S2, S3)
+  │  dataloader/loader.py        build_normalized(): chunked TSV read -> normalize -> parquet per country
+  ▼  normalization/              normalize_records(), learn_lexicon()
+  │  filters/blocking.py         generate_candidates(): FAISS reverse assignment per country / state
+  ▼  retrieval/                  CharNgramEmbedder (TF-IDF char 2-4-grams -> SVD), FAISS IndexFlatIP
+  │  features/extractor.py       build_features(): pair features
+  ▼  models/classifier.py        cross_validate_model(), predict()   (XGBoost)
+  │  prediction/gate.py          exclusive_assignment(), optimize_decision_thresholds(), select_pairs()
+  ▼  output/candidate_pairs.tsv + output/matching_results.tsv
 ```
-Raw TSVs (S1, S2, S3)
-       │
-       ▼
-1. dataloader/loader.py: Streaming TSV & ground truth mapping dictionaries
-       │
-       ▼
-2. normalization/normalizer.py: NFKD, ligature expansion, schwa-corrected transliteration, address slots
-       │
-       ▼
-3. filters/blocking.py: Scalable inverted index (rare tokens, phonetic skeletons, numbers, 3-grams)
-       │
-       ▼
-4. features/extractor.py: RapidFuzz C++ similarities, address slot states (+1/0/-1), group margin context
-       │
-       ▼
-5. models/classifier.py: 5-Fold GroupKFold LightGBM binary classifier
-       │
-       ▼
-6. prediction/gate.py: Threshold grid search (tau_singleton, tau_match, delta_prob) maximizing Macro-F0.5
-       │
-       ▼
-7. Output Submission TSVs: output/candidate_pairs.tsv & output/matching_results.tsv
-```
+
+`src/pipeline.py` wires these into cached stages: `prepare`, `candidates`, `train`, `evaluate`, `predict`.
 
 ---
 
-## 3. Core Module Contracts
+## 3. Module Contracts
 
-| Module | Core Responsibility | Key Interfaces |
+| Module | Responsibility | Key interfaces |
 | :--- | :--- | :--- |
-| `src/config.py` | Central paths & hyperparameters | `TRAIN_S1_PATH`, `TEST_S1_PATH`, `MAX_TOKEN_BUCKET_SIZE` |
-| `src/dataloader/loader.py` | Streaming I/O & ground truth loading | `load_tsv()`, `load_ground_truth()` |
-| `src/normalization/normalizer.py` | Multilingual cleaning & slot parsing | `normalize_record()`, `phonetic_skeleton()` |
-| `src/filters/blocking.py` | Inverted index candidate generation | `InvertedIndexBlocker`, `evaluate_recall()` |
-| `src/features/extractor.py` | C++ fuzzy similarity & slot contradictions | `FeatureExtractor.extract_batch()` |
-| `src/models/classifier.py` | Grouped LightGBM model training & OOF scoring | `EntityResolutionModel.train_cv()` |
-| `src/prediction/gate.py` | Precision-defense entity decision gate | `DecisionGate.tune_thresholds()`, `predict()` |
-| `src/validation/metrics.py` | Exact competition macro-$F_{0.5}$ metric | `macro_f05()`, `compute_s1_fbeta()` |
+| `src/config.py` | `config.toml` → paths and parameters (paths relative to repo root) | `cfg`, `TRAIN_SOURCE1_PATH`, `TEST_SOURCE1_PATH`, `CACHE_DIR`, `REV_K`, `NAME_WEIGHT` |
+| `src/dataloader/loader.py` | TSV I/O, fit/holdout split, lexicon building, normalized cache | `load_source()`, `load_ground_truth()`, `split_s1_ids()`, `build_lexicon()`, `build_normalized()` |
+| `src/normalization/` | Folding, Indic transliteration, name / address parsing | `normalize_records()`, `normalize_name()`, `normalize_address()`, `fold()`, `phonetic_key()`, `learn_lexicon()` |
+| `src/retrieval/` | Dense vectors and FAISS helpers (GPU when available) | `CharNgramEmbedder`, `name_text()`, `addr_text()`, `flat_index()`, `gpu_available()` |
+| `src/filters/blocking.py` | Candidate generation and blocking metrics | `generate_candidates()`, `PartitionedIndex`, `evaluate_blocking_recall()` |
+| `src/features/extractor.py` | Pair features | `build_features()`, `FEATURE_NAMES` |
+| `src/models/classifier.py` | XGBoost (CUDA when available) with GroupKFold by S1 entity | `cross_validate_model()`, `predict()`, `train_model()`, `feature_importance()` |
+| `src/prediction/gate.py` | One S1 per pool record, decision gate, vectorized macro F0.5 | `exclusive_assignment()`, `select_pairs()`, `macro_fbeta_pairs()`, `optimize_decision_thresholds()` |
+| `src/validation/metrics.py` | Reference macro F0.5 (competition definition) | `compute_s1_fbeta()`, `macro_fbeta()`, `self_test()` |
 
 ---
 
-## 4. Verification & Validation Commands
+## 4. Validation Protocol (no leakage)
+
+* Train S1 entities are split once into **fit (80%)** and **holdout (20%)**, by entity (`cache/s1_split.json`). Every S2/S3 record belongs to at most one S1 entity, so no true pair crosses the split.
+* Everything learned from labels uses fit entities only: the Indic lexicon, XGBoost (GroupKFold by S1 entity inside fit), and the retrieval settings.
+* The gate is tuned on one half of the holdout. The benchmark (`cache/benchmark.json`) is reported on the other half.
+* The one-S1-per-record step uses out-of-fold probabilities for trained entities.
+* Embedders and FAISS indexes use no labels and are fitted the same way on the test set.
+
+---
+
+## 5. Commands
 
 ```bash
-# Fast verification (sample 2,000 entities in ~10s)
-python src/main.py --sample 2000
+# from code/business_entity_resolution/
+.venv/bin/python src/main.py                     # all stages
+.venv/bin/python src/main.py --stage evaluate    # a single stage (uses cached earlier stages)
+.venv/bin/python -m src.validation.metrics       # metric self-test
 
-# Full dataset training & test inference
-python src/main.py
-
-# Official submission validator
-python ../../6ab10eb3b23ba_student_resource/student_resource/utils/validate_submission.py \
-    --matching ../../output/matching_results.tsv \
-    --candidate ../../output/candidate_pairs.tsv \
-    --test-dir ../../6ab10eb3b23ba_student_resource/student_resource/dataset/test
+# from the repository root: official format validator
+code/business_entity_resolution/.venv/bin/python student_resource/utils/validate_submission.py \
+    --matching output/matching_results.tsv \
+    --candidate output/candidate_pairs.tsv \
+    --test-dir student_resource/dataset/test
 ```

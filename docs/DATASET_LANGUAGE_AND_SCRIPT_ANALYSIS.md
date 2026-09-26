@@ -37,7 +37,11 @@ Audit across 100,000-record batches per file revealed a **cross-script asymmetry
 
 ## 3. Implemented Solutions
 
-1. **Language-Agnostic Numeric Anchors:** PIN codes and plot numbers (`400093`, `B-78/1`) are Arabic numerals across all scripts; indexed with frequency caps in `blocking.py`.
-2. **Schwa-Corrected Transliteration & Skeletons:** `unidecode` + schwa stripping (`kamala` $\to$ `kamal`) + phonetic skeleton reduction (`shree`/`sri` $\to$ `sr`, `balaji` $\to$ `blj`) in `normalizer.py`.
-3. **Cross-Script GBDT Indicators:** `is_cross_script` boolean feature in `extractor.py` allows the classifier to rely on phonetic similarity and numeric agreement when scripts diverge.
+The table above was re-checked on 2026-09-26 and holds. It counts records with Indic text in the name *or* the address. Counting names only, 23% of India records in S2 and 13% in S3 have an Indic name.
 
+1. **Learned Indic → English lexicon** (`normalization/transliterate.py`). Indic records are mostly English words written in Indic script, so rule-based romanization cannot recover them (`कंस्ट्रक्शन` → `kmstrksn`). The lexicon is learned from training links of the **fit split only**:
+   * names: an Indic name and its S1 name with the same token count are aligned word by word (95% of Indic↔English name pairs have equal length; mapping purity 97%);
+   * addresses: Indic components are aligned with S1 components, keeping mappings that co-occur in ≥ 80% of pairs. This recovers state names, including one-word-to-two-word cases (`தமிழ்நாடு` → `tamil nadu`, `পশ্চিমবঙ্গ` → `west bengal`).
+   * About 1,330 Indic words are learned. They cover 84% of the distinct Indic words in the test set. The rest fall back to `anyascii` romanization.
+2. **Phonetic keys** (`normalization/text.py: phonetic_key`) bridge the rough fallback romanization and typos (`shree`/`sri`/`shri` → `sr`, `balaji` → `blj`, `motors` / `मोटर्स` → `mtrs`). They are used as a model feature.
+3. **Char n-gram retrieval + numbers**. Candidates come from char 2-4-gram vectors of normalized names and addresses (FAISS), so a partially translated or romanized record still shares most n-grams with its S1 record. House numbers and PIN-like digits are identical across scripts.

@@ -7,3 +7,4 @@ __pycache__/
 personal-documentation/
 ./output/
 /code/business_entity_resolution/config.toml
+/cache/

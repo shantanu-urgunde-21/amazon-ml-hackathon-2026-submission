@@ -1,3 +1,3 @@
-from .classifier import train_lightgbm, cross_validate_lgbm
+from .classifier import cross_validate_model, feature_importance, predict, train_model
 
-__all__ = ["train_lightgbm", "cross_validate_lgbm"]
+__all__ = ["cross_validate_model", "feature_importance", "predict", "train_model"]

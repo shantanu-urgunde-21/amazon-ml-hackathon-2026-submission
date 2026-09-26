@@ -1,126 +1,79 @@
-"""
-Entity-Level Decision Gate module for Business Entity Resolution.
-Optimizes tau_singleton, tau_match, and delta_prob on OOF probabilities to directly
-maximize the competition's macro-averaged F_0.5 metric.
+"""Entity-level decision gate, tuned to maximize macro F_0.5.
+
+For each S1 entity with candidate probabilities P:
+  1. singleton protection: if max(P) < tau_singleton, predict no match
+  2. otherwise include candidate j when P_j >= tau_match and max(P) - P_j <= delta_prob
+
+Before the gate, `exclusive_assignment` enforces a fact of the data: every
+S2/S3 record matches at most one S1 entity, so a pool record that is a
+candidate of several S1 entities keeps only its most probable one.
+
+Everything is vectorized over pair arrays so the threshold search can score
+hundreds of thousands of entities per grid point.
 """
 
-import pandas as pd
-from collections import defaultdict
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from itertools import product
+from typing import Dict, List, Tuple
+
 import numpy as np
-from src.validation.metrics import macro_fbeta
+import pandas as pd
+
+TAU_SINGLETON_GRID = [0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80]
+TAU_MATCH_GRID = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40]
+DELTA_PROB_GRID = [0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
 
 
-def apply_contradiction_penalties(
-    probs: np.ndarray,
-    X: Optional[pd.DataFrame] = None,
-    penalty_factor: float = 1.0,
-) -> np.ndarray:
-    """Passes through probabilities; contradiction features are weighted natively by GBDT."""
-    return probs
+def exclusive_assignment(s1_idx: np.ndarray, pool_idx: np.ndarray, prob: np.ndarray) -> np.ndarray:
+    """Zero out every pair whose pool record has a more probable S1 entity."""
+    best = pd.Series(prob).groupby(pool_idx).transform("max").to_numpy()
+    order = np.lexsort((-prob, pool_idx))  # ties: keep one
+    first = np.ones(len(prob), dtype=bool)
+    first[order[1:]] = pool_idx[order[1:]] != pool_idx[order[:-1]]
+    return np.where((prob >= best) & first, prob, 0.0).astype(np.float32)
 
 
-
-def group_pair_predictions(
-    probs: np.ndarray,
-    pair_keys: List[Tuple[str, str]],
-    all_s1_ids: Iterable[str] = None,
-) -> Dict[str, List[Tuple[str, float]]]:
-    """
-    Groups pair probabilities by source1_entity_id:
-    Returns dict: s1_id -> [(cand_id, probability), ...]
-    Ensures every s1_id in all_s1_ids exists in the dictionary.
-    """
-    grouped: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
-    if all_s1_ids:
-        for s1_id in all_s1_ids:
-            grouped[s1_id] = []
-
-    for prob, (s1_id, cand_id) in zip(probs, pair_keys):
-        grouped[s1_id].append((cand_id, float(prob)))
-
-    return grouped
+def select_pairs(group: np.ndarray, prob: np.ndarray, tau_singleton: float, tau_match: float,
+                 delta_prob: float) -> np.ndarray:
+    """Boolean mask of selected pairs. `group` = dense S1 codes (0..n-1)."""
+    gmax = np.full(group.max() + 1 if len(group) else 0, -1.0)
+    np.maximum.at(gmax, group, prob)
+    m = gmax[group]
+    return (m >= tau_singleton) & (prob >= tau_match) & (m - prob <= delta_prob)
 
 
+def macro_fbeta_pairs(group: np.ndarray, selected: np.ndarray, label: np.ndarray,
+                      n_true: np.ndarray, beta: float = 0.5) -> float:
+    """Macro F_beta over all S1 entities. n_true[g] = number of true links of
+    entity g (including links blocking missed); entities without candidates
+    are part of n_true too (their prediction is empty)."""
+    n = len(n_true)
+    tp = np.bincount(group, weights=(selected & (label == 1)), minlength=n)
+    pred = np.bincount(group, weights=selected, minlength=n)
+    b2 = beta * beta
+    with np.errstate(divide="ignore", invalid="ignore"):
+        p = np.where(pred > 0, tp / pred, 0.0)
+        r = np.where(n_true > 0, tp / n_true, 0.0)
+        f = np.where(tp > 0, (1 + b2) * p * r / (b2 * p + r), 0.0)
+    f = np.where((n_true == 0) & (pred == 0), 1.0, f)
+    return float(f.mean())
 
-def apply_decision_gate(
-    grouped_preds: Dict[str, List[Tuple[str, float]]],
-    tau_singleton: float = 0.60,
-    tau_match: float = 0.55,
-    delta_prob: float = 0.15,
-) -> Dict[str, List[str]]:
-    """
-    Applies the entity-level decision rule:
-    1. If max(P) < tau_singleton: predict empty set (singleton protection).
-    2. Else, include candidate j when P_j >= tau_match and (max(P) - P_j) <= delta_prob.
-    """
-    final_matches: Dict[str, List[str]] = {}
 
-    for s1_id, cand_list in grouped_preds.items():
-        if not cand_list:
-            final_matches[s1_id] = []
+def optimize_decision_thresholds(group, prob, label, n_true, beta: float = 0.5, log=print) -> Tuple[Dict, float]:
+    best, best_score = None, -1.0
+    for ts, tm, dp in product(TAU_SINGLETON_GRID, TAU_MATCH_GRID, DELTA_PROB_GRID):
+        if tm > ts:
             continue
-
-        probs = [p for _, p in cand_list]
-        max_p = max(probs)
-
-        # Step 1: Singleton protection
-        if max_p < tau_singleton:
-            final_matches[s1_id] = []
-            continue
-
-        # Step 2: Multi-candidate inclusion
-        matched = []
-        for cand_id, p in cand_list:
-            if p >= tau_match and (max_p - p) <= delta_prob:
-                matched.append(cand_id)
-
-        final_matches[s1_id] = matched
-
-    return final_matches
+        score = macro_fbeta_pairs(group, select_pairs(group, prob, ts, tm, dp), label, n_true, beta)
+        if score > best_score:
+            best, best_score = {"tau_singleton": ts, "tau_match": tm, "delta_prob": dp}, score
+    log(f"  gate thresholds {best} -> macro F{beta}: {best_score:.4f}")
+    return best, best_score
 
 
-def optimize_decision_thresholds(
-    oof_probs: np.ndarray,
-    pair_keys: List[Tuple[str, str]],
-    ground_truth: Dict[str, Set[str]],
-    all_s1_ids: List[str],
-    X: Optional[pd.DataFrame] = None,
-) -> Tuple[float, float, float, float]:
-    """
-    Performs grid search over (tau_singleton, tau_match, delta_prob) to find
-    parameters that maximize macro F_0.5 on Out-Of-Fold predictions.
-    """
-    if X is not None:
-        oof_probs = apply_contradiction_penalties(oof_probs, X)
-
-    print("Grouping OOF predictions by S1 entity...")
-    grouped_oof = group_pair_predictions(oof_probs, pair_keys, all_s1_ids=all_s1_ids)
-
-
-    # Convert ground truth subset to dict of sets for scoring
-    eval_gt = {s1: ground_truth.get(s1, set()) for s1 in all_s1_ids}
-
-    best_score = -1.0
-    best_params = (0.60, 0.55, 0.15)
-
-    print("Searching optimal decision gate thresholds for macro F_0.5...")
-    for tau_sing in [0.45, 0.50, 0.55, 0.60, 0.65, 0.70]:
-        for tau_m in [0.40, 0.45, 0.50, 0.55, 0.60]:
-            for delta_p in [0.10, 0.15, 0.20]:
-                preds = apply_decision_gate(
-                    grouped_oof,
-                    tau_singleton=tau_sing,
-                    tau_match=tau_m,
-                    delta_prob=delta_p,
-                )
-                score = macro_fbeta(eval_gt, {k: set(v) for k, v in preds.items()}, beta=0.5)
-
-                if score > best_score:
-                    best_score = score
-                    best_params = (tau_sing, tau_m, delta_p)
-
-    print(f"  [BEST] Thresholds found: tau_singleton={best_params[0]}, tau_match={best_params[1]}, delta_prob={best_params[2]}")
-    print(f"  [BEST] Benchmark OOF Macro F_0.5: {best_score:.4f}")
-
-    return best_params[0], best_params[1], best_params[2], best_score
+def apply_decision_gate(s1_ids: np.ndarray, cand_ids: np.ndarray, group: np.ndarray, prob: np.ndarray,
+                        thresholds: Dict) -> Dict[str, List[str]]:
+    sel = select_pairs(group, prob, **thresholds)
+    out: Dict[str, List[str]] = {}
+    for s1, cand in zip(s1_ids[sel], cand_ids[sel]):
+        out.setdefault(s1, []).append(cand)
+    return out

@@ -1,3 +1,3 @@
-from .extractor import extract_pair_features, build_feature_matrix, FEATURE_NAMES
+from .extractor import FEATURE_NAMES, RETRIEVAL_FEATURES, build_features
 
-__all__ = ["extract_pair_features", "build_feature_matrix", "FEATURE_NAMES"]
+__all__ = ["FEATURE_NAMES", "RETRIEVAL_FEATURES", "build_features"]

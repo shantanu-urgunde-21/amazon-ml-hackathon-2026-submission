@@ -32,7 +32,8 @@ with open(CONFIG_PATH, "rb") as f:
 # (e.g. notebooks running from src/notebooks/) gets usable paths too.
 for _k, _v in _raw["datasetPaths"].items():
     _raw["datasetPaths"][_k] = str(_resolve(_v))
-_raw["outputPaths"]["outputDir"] = str(_resolve(_raw["outputPaths"]["outputDir"]))
+for _k in ("outputDir", "cacheDir"):
+    _raw["outputPaths"][_k] = str(_resolve(_raw["outputPaths"][_k]))
 
 cfg = _to_namespace(_raw)
 
@@ -43,6 +44,7 @@ OUTPUT_DIR = Path(cfg.outputPaths.outputDir)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 MATCHING_RESULTS_PATH = OUTPUT_DIR / cfg.outputPaths.matchingResultsFile
 CANDIDATE_PAIRS_PATH = OUTPUT_DIR / cfg.outputPaths.candidatePairsFile
+CACHE_DIR = Path(cfg.outputPaths.cacheDir)
 
 # Training datasets
 TRAIN_DIR = Path(cfg.datasetPaths.trainPath)
@@ -67,8 +69,21 @@ MAX_TOKEN_BUCKET_SIZE = cfg.params.maxTokenBucketSize
 MIN_NAME_TOKEN_LEN = cfg.params.minNameTokenLen
 NGRAM_SIZE = cfg.params.ngramSize
 
+# GPU (FAISS search + XGBoost), with automatic CPU fallback
+USE_GPU = cfg.gpu.useGpu
+
+# Phase 4: FAISS similarity index
+EMBED_DIM = cfg.retrieval.embedDim
+NAME_WEIGHT = cfg.retrieval.nameWeight
+REV_K = cfg.retrieval.revK
+REV_MARGIN = cfg.retrieval.revMargin
+NPROBE = cfg.retrieval.nprobe
+SEARCH_CHUNK = cfg.retrieval.searchChunk
+
 # Modeling & Validation
+TRAIN_ENTITIES = cfg.params.trainEntities
 RANDOM_SEED = cfg.params.randomSeed
+HOLDOUT_FRAC = cfg.params.holdoutFrac
 N_FOLDS = cfg.params.nFolds
 BETA = cfg.params.beta
 

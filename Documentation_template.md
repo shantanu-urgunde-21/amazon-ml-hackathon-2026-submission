@@ -1,138 +1,116 @@
 # ML Challenge 2026: Business Entity Resolution Solution
 
-**Team Name:** Antigravity ER Team  
-**Task:** Business Entity Resolution (Source 1 $\rightarrow$ Source 2 & Source 3)  
-**Submission Date:** September 25, 2026  
+**Team Name:** Antigravity ER Team
+**Team Members:** [fill in]
+**Submission Date:** September 26, 2026
 
 ---
 
 ## 1. Executive Summary
 
-We present a high-throughput, multilingual retrieval-and-ranking pipeline specifically engineered for the competition's **Macro-averaged $F_{0.5}$** metric. The pipeline resolves reference entities from Source 1 against noisy candidate targets in Source 2 and Source 3 across US, Indian, and unseen French business records. 
-
-Key technical innovations include:
-1. **Multilingual Script Normalization:** Inherent-schwa-corrected transliteration (`kamala` $\to$ `kamal`) and phonetic consonant skeletons (`shree`/`sri` $\to$ `sr`, `balaji` $\to$ `blj`) bridging Latin S1 and native Devanagari S2/S3 records.
-2. **Two-Tier Compound Inverted Index Blocking:** Scalable 5-way blocking indexing rare tokens, compound keys (`token#p_{pin}`, `token#s_{state}`) for frequent corporate words, phonetic skeletons, numeric tokens, and multi-token 3-grams.
-3. **Structured Ternary Contradiction Logic (+1 / 0 / -1):** Physical address slot contradictions (street number conflicts on identical streets, administrative state conflicts, PIN mismatches) engineered to aggressively defend precision under the $F_{0.5}$ penalty.
-4. **Candidate-Relative Group Context:** Group-level feature engineering (top candidate margins, candidate rank, and bucket volume) feeding a 5-fold `GroupKFold` LightGBM classifier paired with an entity-level decision gate ($\tau_{\text{singleton}}, \tau_{\text{match}}, \Delta_{\text{prob}}$).
-
-On our 5,000-entity benchmark, the system achieves an Out-Of-Fold **Macro-$F_{0.5}$ of 0.9421** (India: 0.9097, US: 0.9629) with **98.1% singleton accuracy** and end-to-end execution in under 45 seconds.
+We normalize multilingual business records, retrieve candidates with FAISS similarity indexes, and score them with XGBoost. Indic-script text is translated with a lexicon learned from the training links. Candidates come from **reverse assignment**: every S2/S3 record looks up its nearest S1 records by name and by address in exact FAISS indexes partitioned by country and state. This keeps the candidate set to **10.5 candidates per S1 entity** on the test set (8.4 on the holdout), while keeping **94.5% of true links** on held-out training entities. On an untouched holdout of training entities the pipeline scores a **macro F0.5 of 0.9537** (India 0.9418, US 0.9617).
 
 ---
 
 ## 2. Methodology
 
 ### 2.1 Problem Analysis
-* **Cross-Script Asymmetry:** Empirical analysis revealed that Source 1 is **100% Latin script**, whereas Source 2 and 3 contain **~41% native Indic scripts** (Devanagari, Bengali, Tamil, Telugu) in Indian records. Standard ASCII fuzzy matching yields `0.0` similarity, permanently dropping true matches during blocking unless transliterated.
-* **Open-Set Country Shift:** The test set introduces unseen records from **France** (~13%), requiring robust handling of French elisions (`l'`, `d'`), ligatures (`œ`, `æ`), prefix street designators (`Rue de la Paix`), and administrative boilerplate (`CEDEX`).
-* **$F_{0.5}$ Metric Economics:** Precision is penalized $2\times$ over recall ($1/\beta^2 = 4$). Singletons earn **1.0** for an empty prediction, but drop to **0.0** upon a single false merge. Error audits proved that defending precision against false merges delivers ~3× higher score ROI than hunting low-frequency minority scripts.
+
+* **Scale:** 1.7M test S1 entities against 10.0M S2/S3 records. Train: 2.2M against 10.3M.
+* **Structure of the links** (train ground truth): every S2/S3 record matches **at most one** S1 entity, and links never cross countries. An S1 entity has 3.46 matches on average (median 3, 99th percentile 8), and 5.6% of entities have none. 26% of pool records match nothing (distractors).
+* **Scripts:** S1 is always Latin script. In S2/S3, 41% of India records contain Indic script in the name or address: Devanagari 24%, plus Bengali, Tamil, Telugu, Kannada, Gujarati, Malayalam, Odia and Gurmukhi. These are mostly *English words written in Indic script* (`प्राइवेट लिमिटेड` = private limited), so rule-based transliteration fails.
+* **Name noise:** case, accents, OCR digits (`Appare1s`), legal forms anywhere (`LLC Espinoza…`, `L.L.C.`, `Pvt.`), honorifics (`Sri`, `Dr`), junk prefixes (`--`, `***`), brackets, word reordering, typos, aliases (`X DBA Y`, `X formerly Y`, `X née Y`), domains (`lifeinvestments.com`, `Name | www.x.com`, `CORALIEFETESSASCOM`), and appended phone numbers.
+* **Address noise:** reordered components; states as code, name or native script; abbreviations (`St`/`Street`/`Saint`, `Rd`, French `R.`/`Bd`/`All.`); `City of X`, `X CDP`; house-number formats (`004512`, `#1998`, `C-2-08` vs `C-208`, `506-510`); PO box / PMB / CEDEX; `null` tokens; truncation; missing addresses (~3%). Postcodes are practically absent.
+* **France** exists only in the test set (15% of test S1). Its legal forms (SARL, SAS, EURL, SCI, SNC…), street types and region/department names are handled by rules. No labels are used for it.
 
 ### 2.2 Solution Strategy
-* **Approach Type:** Two-Stage Retrieval (Inverted Index Blocking) + High-Dimensional Ranking (LightGBM) + Precision-Defensive Decision Gating.
-* **Core Innovation:** Language-agnostic numeric anchors combined with phonetic consonant skeleton projections and ternary contradiction slots (+1 agreement, 0 missing, -1 explicit contradiction).
+
+**Approach type:** normalization → FAISS similarity-index blocking → gradient-boosted pair classifier → entity-level decision gate.
+**Core innovation:** reverse-assignment retrieval. Because each S2/S3 record belongs to at most one S1 entity, the pool records query an index of S1 records, not the other way round. Each S1 entity's candidate set is then only the records that point at it. This gives small, adaptive candidate sets instead of a fixed top-K.
 
 ---
 
 ## 3. Candidate Generation (Blocking)
 
-To reduce the $O(N \times M)$ pairwise comparison space down to $\le 50$ high-probability candidates per S1 entity without recall leakage:
-
-- **Blocking Keys Used:**
-  1. **Rare Name Tokens:** Informative tokens appearing in $\le 1,500$ records with corporate stop-words suppressed.
-  2. **Compound Frequent Tokens:** For high-frequency non-generic corporate names (*Precision*, *Continental*, *Universal*, *Healthcare* appearing in $>1,500$ records), compound keys are formed: `token#p_{postal_code}` and `token#s_{state}`.
-  3. **Phonetic Consonant Skeletons:** Consonant projections mapped via canonical phonetic equivalences (`ph` $\to$ `f`, `w` $\to$ `v`, `sh` $\to$ `s`, `ck`/`c`/`q` $\to$ `k`, interior vowels stripped).
-  4. **Address Numeric Anchors:** Extracted PIN codes, building numbers, and plot identifiers.
-  5. **Informative 3-Grams:** Character 3-grams across the first two non-trivial name tokens for typo and sub-string tolerance.
-- **Candidate Volume & Coverage:** Generates an average of **49.4 candidates per S1 entity**, achieving **86.5% candidate recall** on the training ground truth.
+* **Vectors:** char 2-4-gram (word-bounded) TF-IDF of the normalized name and of the normalized address, compressed with truncated SVD to 128 dimensions each (`retrieval/embedder.py`). Fitted unsupervised on each country's pool.
+* **Indexes:** exact FAISS flat inner-product indexes (GPU `GpuIndexFlatIP` when available, else CPU `IndexFlatIP`; identical results) over S1 records, one per **country × state partition** and per view (name, address). True matches agree on state in > 98.8% of links; WA/DC and AP/Telangana share a partition because the data mixes them. Records without a state search all partitions of their country.
+* **Keys per pool record:** its best S1 by name alone, its best by address alone, its best by the combined similarity (0.4 · name + 0.6 · address), plus up to 3 more within 0.05 of that best. Records without an address keep up to 5 by name within 0.10.
+* **Candidate pairs generated (test):** 18,169,981 (10.49 per S1 entity; France 11.47, India 10.92, US 9.58; cap 30). That is 0.0003% of all same-country pairs (reduction ratio 0.999997).
+* **How true matches are protected:** three retrieval views (name / address / combined), the state partitions fall back to country-wide search, and the one-to-one structure means a record's true S1 is almost always its nearest S1. Holdout candidate recall: **94.46%** at 8.4 candidates per entity.
 
 ---
 
 ## 4. Matching Model
 
-### Features Used (28 Total Features)
-1. **Name Similarities (7):** Levenshtein ratio, token-sort ratio, token-set ratio, Jaro-Winkler, exact match boolean, length difference ratio, prefix match boolean (via C++ accelerated `rapidfuzz`).
-2. **Address Similarities (4):** Token-set ratio, token-sort ratio, Levenshtein ratio, exact address match boolean.
-3. **Numeric Token Overlap (2):** Numeric token intersection count and numeric Jaccard overlap.
-4. **Metadata & Cross-Script (3):** Country equality indicator, candidate source indicator (`cand_is_s2`), cross-script indicator (`is_cross_script`), and phonetic skeleton Jaccard similarity.
-5. **Ternary Contradiction Slots (5):**
-   - `postal_code_state`: $+1$ (equal), $0$ (missing), $-1$ (conflict)
-   - `building_number_state`: $+1$ (equal), $0$ (missing), $-1$ (conflict)
-   - `unit_state`: $+1$ (equal), $0$ (missing), $-1$ (conflict)
-   - `street_num_conflict_same_street`: $1.0$ if street names match ($\ge 0.80$) but primary street numbers conflict
-   - `state_region_state` / `geo_conflict`: $+1$ (same state), $0$ (missing), $-1$ (state conflict)
-6. **Candidate-Relative Group Context (3):**
-   - `cand_rank_name_sim`: Candidate rank within the S1 retrieval pool
-   - `cand_margin_name_sim`: Distance in name similarity from the top candidate in the group
-   - `cand_bucket_size`: Total candidate pool size for S1
+**Features (36, `features/extractor.py`):**
 
-### Model & Decision Gate
-- **Classifier:** 5-Fold `GroupKFold` LightGBM binary classifier grouped strictly by `source1_entity_id` to eliminate data leakage.
-- **Decision Gate:** Post-GBDT entity-level optimization searching over $(\tau_{\text{singleton}}, \tau_{\text{match}}, \Delta_{\text{prob}})$ directly maximizing Macro-$F_{0.5}$. If $\max_j P_j < \tau_{\text{singleton}}$, the entity is predicted as an empty set to protect the 1.0 singleton credit; otherwise, candidate $j$ is emitted if $P_j \ge \tau_{\text{match}}$ and $(\max_j P_j - P_j) \le \Delta_{\text{prob}}$.
+* **Name:** Levenshtein ratio, token-set, token-sort and partial ratio, Jaro-Winkler, exact match, no-space ratio and partial ratio (for domains), best alias similarity (DBA/formerly), phonetic-key token set, legal-form agreement (+1/0/-1), token counts, first-token equality.
+* **Address:** token-set, ratio and partial ratio, empty-address flags, state agreement (+1/0/-1), house-number agreement (+1/0/-1), number-code token set.
+* **Retrieval:** combined / name / address cosine, forward rank within the S1 entity's candidates, reverse rank of the S1 among the record's nearest S1s, margin to the record's best S1.
+* **Candidate-set context:** size, rank and margin of the pair within its S1 entity by cosine and by name similarity; source (S2/S3) and Indic flag.
+
+**Model type:** XGBoost binary classifier (Apache-2.0; `hist` trees, trained on the GPU when available), 5-fold GroupKFold by S1 entity, trained on the candidate pairs of 300k fit-split entities. The fold models are averaged at inference.
+
+**Post-processing:**
+
+1. **Exclusive assignment:** a pool record is linked to at most one S1 entity, the most probable one.
+2. **Decision gate:** if max P < τ_singleton, predict no match. Otherwise take the candidates with P ≥ τ_match and max P − P ≤ Δ_prob.
+
+**Threshold selection:** grid search maximizing macro F0.5 on one half of the holdout entities (τ_singleton = 0.65, τ_match = 0.05, Δ_prob = 0.30).
 
 ---
 
 ## 5. Results & Error Analysis
 
-| Metric | Baseline (v0.1) | Phase 2 (Slots & Margins) | Phase 3 (Contradictions & Compound) |
-| :--- | :---: | :---: | :---: |
-| **Macro $F_{0.5}$** | 0.9399 | 0.9415 | **0.9421** |
-| **Non-Singleton $F_{0.5}$** | 0.9221 | 0.9262 | **0.9255** |
-| **Singleton Accuracy** | 97.4% | 97.7% | **98.1%** |
-| **India Macro $F_{0.5}$** | 0.8980 | 0.9094 | **0.9097** |
-| **US Macro $F_{0.5}$** | 0.9602 | 0.9622 | **0.9629** |
-| **Blocking Recall** | 86.10% | 86.29% | **86.48%** |
+Validation protocol: train S1 entities are split by entity into fit (80%) and holdout (20%). The lexicon, model and retrieval settings use fit only. The gate is tuned on half the holdout, and the score is reported on the other half, which nothing touched (details in the code README).
 
-### Error Post-Mortems
-- **Common False Positives (False Merges):**
-  1. *Adjacent House Numbers:* High name and street similarity causing merges across neighboring plots (e.g. `36861` vs `36870` Van Brocklin Rd). Mitigated via `street_num_conflict_same_street`.
-  2. *Regional Multi-Branches:* Common corporate names (*Compass LLC*, *Hyderabad Research Limited*) across different cities/states. Mitigated via positional state extraction and `state_region_state`.
-- **Common False Negatives (Missed Matches):**
-  1. *Un-spaced Domain Names:* S1 business names matching URL targets (e.g. `sjacevendome.com`). Mitigated via domain token unpacking in `normalizer.py`.
-  2. *Infrequent Transliterations:* Minority Dravidian scripts (Telugu, Tamil) in Indian records without Latin overlap.
+| Metric (holdout report half, 221,025 entities) | Value |
+| :--- | ---: |
+| **Macro F0.5** | **0.9537** |
+| Macro F0.5 India / US | 0.9418 / 0.9617 |
+| Macro F0.5 on the tuning half | 0.9540 |
+| Candidate recall | 94.46% |
+| Candidates per S1 entity | 8.4 |
+| Pair precision / pair recall | 98.78% / 90.38% |
+| Singletons correctly left empty | 94.5% |
+
+True links lost: 41,669 at blocking and 31,901 by the model or gate, out of 764,624. France has no labels. Its predictions (3.49 matches per entity, 5.0% empty) look like the training distribution (3.46 and 5.6%).
+
+* **Common false positives (wrong merges):** 8,520 wrong pairs out of 699,574 predicted. 57% link a record that belongs to no S1 entity, and 43% link a record that belongs to another entity. Typical cases: the same name at a neighbouring house number (`306` vs `310 Monroe St`, same unit); a different business at the same address (`Chathams Trusted Textiles` vs `Zleigrex`, both `501 Rebecca Smith Way`); and name-only records without an address whose name also fits another entity.
+* **Common false negatives (missed matches):** (1) blocking misses: short generic names with truncated addresses in large cities (mostly India), and records with no address; (2) model rejections: same name but a noisy or different house number (`10` vs `8 Sunflower Dr`), heavily garbled names (`endocsnoolryg`), and addressless records whose name is shared by several entities.
 
 ---
 
 ## 6. Conclusion
 
-By treating business entity resolution as a precision-first problem under Macro-$F_{0.5}$, our architecture pairs linguistically grounded normalization and compound blocking with structured physical contradiction logic. The pipeline processes 5,000 entities in 44 seconds and scales linearly across the 1.7M test set without external APIs.
+Treating the one-record-one-entity structure as a retrieval constraint gives small candidate sets (8–11 per entity, with adaptive size) without giving up recall. A lexicon learned from the training links turns Indic-script records into comparable English text. The main remaining gaps are addressless records and generic names in dense cities. Better handling of those, for example with a learned embedding, would raise both the recall ceiling (94.5%) and the model recall.
 
 ---
 
 ## Appendix
 
-### A. Code Artefacts & Structure
-The complete implementation is self-contained in `code/business_entity_resolution/`:
-```
-code/business_entity_resolution/
-├── requirements.txt           # Pinned dependencies (lightgbm, rapidfuzz, unidecode, scikit-learn)
-├── README.md                  # Complete reproduction walkthrough
-└── src/
-    ├── config.py              # Central path resolution and hyperparameters
-    ├── main.py                # End-to-end pipeline CLI orchestrator
-    ├── dataloader/loader.py   # Streaming high-throughput TSV loaders
-    ├── normalization/normalizer.py # Multilingual cleaning, slots & transliteration
-    ├── filters/blocking.py    # 5-way inverted index with compound keys
-    ├── features/extractor.py  # 28 pairwise string, contradiction & group features
-    ├── models/classifier.py   # 5-fold GroupKFold LightGBM classifier
-    ├── prediction/gate.py     # OOF decision gate maximizing Macro-F0.5
-    └── validation/metrics.py  # Official Macro-F0.5 evaluation metric
+### A. Code Artefacts
+
+`code/business_entity_resolution/` (entry point `src/main.py`; stages in `src/pipeline.py`; see its `README.md`):
+
+```bash
+make init
+cp code/business_entity_resolution/config.example.toml code/business_entity_resolution/config.toml
+make run          # writes output/candidate_pairs.tsv and output/matching_results.tsv
 ```
 
-**Entry Point to Reproduce Outputs:**
-```bash
-cd code/business_entity_resolution
-pip install -r requirements.txt
-python src/main.py
-```
-Outputs are written strictly to:
-- `output/candidate_pairs.tsv`
-- `output/matching_results.tsv`
+### B. Additional Results
 
-### B. Validation Verification
-The generated submission files pass all checks in `validate_submission.py`:
-```bash
-python utils/validate_submission.py \
-    --matching output/matching_results.tsv \
-    --candidate output/candidate_pairs.tsv \
-    --test-dir dataset/test
-```
+| Model (same holdout half) | Macro F0.5 | India | US | Train time |
+| :--- | ---: | ---: | ---: | ---: |
+| LightGBM, CPU, 1,000 rounds, coarse gate grid | 0.9525 | 0.9400 | 0.9609 | 8.5 min |
+| **XGBoost, GPU, early stopping, finer gate grid** | **0.9537** | **0.9418** | **0.9617** | **5.6 min** |
+
+| Retrieval (fit entities) | Candidate recall | Candidates per S1 |
+| :--- | ---: | ---: |
+| Combined vector top-1, one global flat index (US) | 91.8% | 4.7 |
+| + name-only / address-only views, state partitions (US) | 95.6% | 7.8 |
+| + wider set for addressless records, noise fixes (US) | 95.8% | 8.1 |
+| same, India | 92.4% | 8.8 |
+
+Most important features (XGBoost total gain): address number-code overlap, address token-set similarity, reverse-assignment margin, house-number agreement, legal-form agreement, name partial ratio, name cosine.

@@ -2,6 +2,12 @@
 **Amazon ML Challenge 2026 — Business Entity Resolution**  
 **Last Run:** 2026-09-25 22:50:53  
 
+> **Superseded (2026-09-26).** Runs `01`–`06` below were produced with `main.py --sample 5000`
+> and a pipeline version that is no longer in the repository. They cannot be reproduced. The current
+> code's `--sample` mode also took the first N rows of every file independently, so almost no true
+> matches were in the sample. The reproducible benchmark is the holdout evaluation in
+> `cache/benchmark.json` (see `code/business_entity_resolution/README.md` → Results).
+
 ---
 
 ## 📈 Experiment Progression Summary
