@@ -9,7 +9,7 @@ Stages (see src/pipeline.py):
     candidates  FAISS similarity-index candidate generation for train and test
     train       XGBoost (GPU if available) on candidate pairs of fit-split entities
     evaluate    tune the decision gate, report macro F0.5 on untouched holdout entities
-    predict     score the test set, write outputs/candidate_pairs.tsv + matching_results.tsv
+    predict     score the test set, write output/candidate_pairs.tsv + matching_results.tsv
 """
 
 import argparse

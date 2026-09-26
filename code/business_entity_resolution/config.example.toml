@@ -8,7 +8,7 @@ gtPath = "student_resource/dataset/train/train_ground_truth.tsv"
 validateScript = "student_resource/utils/validate_submission.py"
 
 [outputPaths]
-outputDir = "outputs"
+outputDir = "output"
 matchingResultsFile = "matching_results.tsv"
 candidatePairsFile = "candidate_pairs.tsv"
 cacheDir = "cache"            # normalized parquet, lexicon, FAISS indexes, models (regenerable)

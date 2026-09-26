@@ -19,14 +19,14 @@ The competition data must be in `student_resource/dataset/` (`train/` and `test/
 make clean-all                     # start from a fresh venv (faiss-cpu and faiss-gpu cannot share one)
 make init GPU=1                    # .venv from requirements-gpu.txt: faiss-gpu-cu12, xgboost, ...
 cp code/business_entity_resolution/config.example.toml code/business_entity_resolution/config.toml
-make run                           # all stages -> outputs/candidate_pairs.tsv + outputs/matching_results.tsv
+make run                           # all stages -> output/candidate_pairs.tsv + output/matching_results.tsv
 
 # check the submission files
 code/business_entity_resolution/.venv/bin/python student_resource/utils/validate_submission.py \
-    --matching outputs/matching_results.tsv --candidate outputs/candidate_pairs.tsv \
+    --matching output/matching_results.tsv --candidate output/candidate_pairs.tsv \
     --test-dir student_resource/dataset/test --check-ids
 
-make package TEAM=<team_name>      # <team_name>_submission.zip: outputs/, code/, Documentation_template.md
+make package TEAM=<team_name>      # <team_name>_submission.zip: output/, code/, Documentation_template.md
 ```
 
 **Is the GPU in use?** Check with
@@ -60,7 +60,7 @@ cd code/business_entity_resolution
 | `candidates` | Build the FAISS indexes and generate candidate pairs for train and test, per country | `candidates/*.parquet` | 90 min (CPU FAISS); search ~25× faster on GPU |
 | `train` | Pair features for 300k fit entities → 5-fold XGBoost | `models.pkl`, `oof_train.parquet` | 5.6 min (GPU) |
 | `evaluate` | Score all train pairs; tune the decision gate on half the holdout; benchmark on the other half | `gate.json`, `benchmark.json`, `holdout_report_pairs.parquet` | 10.5 min |
-| `predict` | Score the test set, apply the gate, write the submission | `outputs/candidate_pairs.tsv`, `outputs/matching_results.tsv` | 10.4 min |
+| `predict` | Score the test set, apply the gate, write the submission | `output/candidate_pairs.tsv`, `output/matching_results.tsv` | 10.4 min |
 
 \* measured on the machine above. `candidates` was run with CPU FAISS; on the GPU, only the index
 search gets faster, because the char n-gram embedding runs on the CPU.
@@ -110,7 +110,7 @@ raw TSVs (S1, S2, S3)
   │     • gate: predict nothing if max P < tau_singleton, else pairs with P >= tau_match
   │       and max P - P <= delta_prob (tuned for macro F0.5)
   │
-  ▼  outputs/candidate_pairs.tsv, outputs/matching_results.tsv
+  ▼  output/candidate_pairs.tsv, output/matching_results.tsv
 ```
 
 ### 3.3 Candidate generation in detail
@@ -163,7 +163,7 @@ Paths are relative to the repository root, so the file works wherever the reposi
 | Section / key | Default | Meaning |
 | :--- | :--- | :--- |
 | `datasetPaths.*` | `student_resource/dataset/...` | train / test folders, ground truth, validator script |
-| `outputPaths.outputDir`, `cacheDir` | `outputs`, `cache` | submission files, intermediate results |
+| `outputPaths.outputDir`, `cacheDir` | `output`, `cache` | submission files, intermediate results |
 | `gpu.useGpu` | `true` | use the GPU for FAISS and XGBoost when one is available |
 | `retrieval.embedDim` | 128 | SVD dimensions per view |
 | `retrieval.nameWeight` | 0.4 | weight of the name cosine in the combined score |
@@ -192,7 +192,7 @@ tuning step used:
 | Singletons correctly predicted empty | 94.5% |
 | Gate thresholds (τ_singleton, τ_match, Δ_prob) | 0.65, 0.05, 0.30 |
 
-**Test set** (`outputs/`, passes `validate_submission.py --check-ids`):
+**Test set** (`output/`, passes `validate_submission.py --check-ids`):
 
 | Country | S1 entities | Pool records | Candidates per S1 | Matches per S1 |
 | :--- | ---: | ---: | ---: | ---: |
