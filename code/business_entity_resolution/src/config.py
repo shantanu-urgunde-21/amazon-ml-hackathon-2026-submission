@@ -2,20 +2,18 @@ import tomllib
 from pathlib import Path
 from types import SimpleNamespace
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.toml"
+SRC_DIR = Path(__file__).resolve().parent
+PKG_DIR = SRC_DIR.parent
+PROJECT_ROOT = PKG_DIR.parent.parent
+
+CONFIG_PATH = PKG_DIR / "config.toml"
+CONFIG_EXAMPLE_PATH = PKG_DIR / "config.example.toml"
 
 
 def _to_namespace(d):
     return SimpleNamespace(**{
         k: _to_namespace(v) if isinstance(v, dict) else v for k, v in d.items()
     })
-
-
-# Base directories
-# This file is located at <ROOT>/code/business_entity_resolution/src/config.py
-SRC_DIR = Path(__file__).resolve().parent
-PKG_DIR = SRC_DIR.parent
-PROJECT_ROOT = PKG_DIR.parent.parent
 
 
 def _resolve(p):
@@ -25,13 +23,36 @@ def _resolve(p):
     return p if p.is_absolute() else (PROJECT_ROOT / p).resolve()
 
 
-with open(CONFIG_PATH, "rb") as f:
+_cfg_file_to_read = CONFIG_PATH if CONFIG_PATH.exists() else CONFIG_EXAMPLE_PATH
+
+with open(_cfg_file_to_read, "rb") as f:
     _raw = tomllib.load(f)
 
-# Store resolved absolute paths back into cfg, so code reading cfg directly
-# (e.g. notebooks running from src/notebooks/) gets usable paths too.
+# Fallback dataset resolution if relative paths in config don't exist
+_default_candidate_dataset_dirs = [
+    PROJECT_ROOT / "student_resource" / "dataset",
+    PROJECT_ROOT.parent / "6ab10eb3b23ba_student_resource" / "student_resource" / "dataset",
+    PROJECT_ROOT / "dataset",
+]
+_resolved_dataset_dir = None
+for _cand in _default_candidate_dataset_dirs:
+    if _cand.exists():
+        _resolved_dataset_dir = _cand
+        break
+
 for _k, _v in _raw["datasetPaths"].items():
-    _raw["datasetPaths"][_k] = str(_resolve(_v))
+    _res = _resolve(_v)
+    if not _res.exists() and _resolved_dataset_dir:
+        # Check if file/folder exists under detected dataset directory
+        _sub_p = _resolved_dataset_dir / Path(_v).name
+        if _sub_p.exists():
+            _res = _sub_p
+        elif "train" in _v and (_resolved_dataset_dir / "train").exists():
+            _res = _resolved_dataset_dir / "train"
+        elif "test" in _v and (_resolved_dataset_dir / "test").exists():
+            _res = _resolved_dataset_dir / "test"
+    _raw["datasetPaths"][_k] = str(_res)
+
 _raw["outputPaths"]["outputDir"] = str(_resolve(_raw["outputPaths"]["outputDir"]))
 
 cfg = _to_namespace(_raw)
